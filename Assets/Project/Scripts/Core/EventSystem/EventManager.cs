@@ -74,6 +74,7 @@ namespace Core.EventSystem
                 }
             }
 
+            // 如果没有监听器，直接返回
             if (listeners == null || listeners.Count == 0)
             {
                 Debug.Log($"[EventManager] 没有找到事件 {typeof(T).Name} 的监听器");
@@ -93,24 +94,23 @@ namespace Core.EventSystem
                 }
                 catch (Exception ex)
                 {
-                    // 记录异常但继续执行
                     exceptions.Add(ex);
-                    Debug.LogWarning($"[EventManager] 监听器 {listener.Method.Name} 执行时发生异常: {ex.Message}");
+                    Debug.LogError($"[事件系统] 触发事件 {typeof(T).Name} 时发生错误: {ex}");
                 }
             }
 
-            // 所有监听器执行完后，如果有异常则抛出
+            // 如果有异常，抛出聚合异常
             if (exceptions.Count > 0)
             {
                 if (exceptions.Count == 1)
                 {
-                    Debug.Log($"[EventManager] 重新抛出单个异常");
+                    Debug.LogError($"[EventManager] 事件处理过程中发生单个异常");
                     throw exceptions[0];
                 }
                 else
                 {
-                    Debug.Log($"[EventManager] 抛出聚合异常 (共 {exceptions.Count} 个)");
-                    throw new AggregateException(exceptions);
+                    Debug.LogError($"[EventManager] 事件处理过程中发生多个异常 ({exceptions.Count})");
+                    throw new AggregateException($"事件 {typeof(T).Name} 处理过程中发生多个错误", exceptions);
                 }
             }
         }
@@ -148,27 +148,16 @@ namespace Core.EventSystem
         /// </summary>
         protected override void OnApplicationQuit()
         {
-            Debug.Log("[EventManager] 应用退出，清理所有事件");
             base.OnApplicationQuit();
             lock (_eventLock)
             {
+                Debug.Log("[EventManager] 应用退出，清理所有事件监听器");
                 eventDictionary.Clear();
-                Debug.Log("[EventManager] 清理完成");
             }
         }
 
         /// <summary>
         /// 清理所有事件监听器
-        /// </summary>
-        public void CleanupOnQuit()
-        {
-            Debug.Log("[EventManager] 执行退出清理");
-            eventDictionary.Clear();
-            Debug.Log("[EventManager] 清理完成");
-        }
-
-        /// <summary>
-        /// 清除所有事件监听器
         /// </summary>
         public void ClearAllListeners()
         {

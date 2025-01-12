@@ -4,10 +4,6 @@ using Core;
 
 namespace Core.ObjectPool
 {
-    /// <summary>
-    /// 通用对象池实现
-    /// 支持自动扩展和对象回收功能
-    /// </summary>
     public class ObjectPool : MonoBehaviour
     {
         [System.Serializable]
@@ -26,17 +22,14 @@ namespace Core.ObjectPool
 
         private void Awake()
         {
-            Debug.Log("对象池Awake被调用");
             InitializeDictionaries();
         }
 
         private void InitializeDictionaries()
         {
-            Debug.Log("初始化字典...");
             poolDictionary = new Dictionary<string, Queue<GameObject>>();
             prefabDictionary = new Dictionary<string, GameObject>();
             poolParents = new Dictionary<string, Transform>();
-            Debug.Log("字典初始化完成");
         }
 
         private void Start()
@@ -53,23 +46,8 @@ namespace Core.ObjectPool
             }
         }
 
-        /// <summary>
-        /// 创建一个新的对象池
-        /// </summary>
-        /// <param name="poolId">对象池ID</param>
-        /// <param name="prefab">预制体</param>
-        /// <param name="size">初始大小</param>
         public void CreatePool(string poolId, GameObject prefab, int size)
         {
-            Debug.Log($"开始创建对象池: {poolId}, 大小: {size}");
-            
-            // 确保字典已初始化
-            if (poolParents == null)
-            {
-                Debug.Log("字典未初始化，正在初始化...");
-                InitializeDictionaries();
-            }
-
             if (prefab == null)
             {
                 Debug.LogError($"[ObjectPool] Prefab for pool {poolId} is null");
@@ -90,46 +68,33 @@ namespace Core.ObjectPool
             }
 
             poolDictionary[poolId] = objectPool;
-            Debug.Log($"对象池 {poolId} 创建完成，大小: {size}");
         }
 
-        /// <summary>
-        /// 创建新的对象实例
-        /// </summary>
         private GameObject CreateNewObject(string poolId, GameObject prefab)
         {
             GameObject obj = Instantiate(prefab, poolParents[poolId]);
             obj.SetActive(false);
             
-            // 添加PoolObject组件用于自动回收
             var poolObject = obj.AddComponent<PoolObject>();
             poolObject.Initialize(poolId, this);
             
             return obj;
         }
 
-        /// <summary>
-        /// 从对象池中获取对象
-        /// </summary>
-        /// <param name="poolId">对象池ID</param>
-        /// <param name="position">生成位置</param>
-        /// <param name="rotation">生成旋转</param>
         public GameObject SpawnFromPool(string poolId, Vector3 position, Quaternion rotation)
         {
             if (!poolDictionary.ContainsKey(poolId))
             {
-                Debug.LogWarning($"[对象池] 标签为 {poolId} 的对象池不存在。");
+                Debug.LogWarning($"[ObjectPool] Pool {poolId} does not exist");
                 return null;
             }
 
             Queue<GameObject> pool = poolDictionary[poolId];
 
-            // 如果池为空则自动扩展
             if (pool.Count == 0)
             {
                 GameObject newObj = CreateNewObject(poolId, prefabDictionary[poolId]);
                 pool.Enqueue(newObj);
-                Debug.Log($"[对象池] {poolId} 已自动扩展");
             }
 
             GameObject objectToSpawn = pool.Dequeue();
@@ -140,14 +105,11 @@ namespace Core.ObjectPool
             return objectToSpawn;
         }
 
-        /// <summary>
-        /// 将对象返回到对象池
-        /// </summary>
         public void ReturnToPool(string poolId, GameObject objectToReturn)
         {
             if (!poolDictionary.ContainsKey(poolId))
             {
-                Debug.LogWarning($"[对象池] 标签为 {poolId} 的对象池不存在。");
+                Debug.LogWarning($"[ObjectPool] Pool {poolId} does not exist");
                 return;
             }
 
@@ -156,22 +118,12 @@ namespace Core.ObjectPool
         }
     }
 
-    /// <summary>
-    /// 池化对象组件
-    /// 用于处理对象的自动回收
-    /// </summary>
     public class PoolObject : MonoBehaviour
     {
         private string poolId;
         private ObjectPool pool;
         private float? autoRecycleTime;
 
-        /// <summary>
-        /// 初始化池化对象
-        /// </summary>
-        /// <param name="poolId">对象池ID</param>
-        /// <param name="objectPool">对象池引用</param>
-        /// <param name="recycleTime">自动回收时间（可选）</param>
         public void Initialize(string poolId, ObjectPool objectPool, float? recycleTime = null)
         {
             this.poolId = poolId;
@@ -190,7 +142,6 @@ namespace Core.ObjectPool
             RecycleNow();
         }
 
-        // 添加直接回收方法，用于测试
         public void RecycleNow()
         {
             if (gameObject.activeInHierarchy && pool != null)

@@ -1,145 +1,170 @@
 using UnityEngine;
-using System.Collections;
 using System;
 using System.Threading;
-#if UNITY_EDITOR
 using UnityEditor;
-#endif
+using UnityEngine.Profiling;
 
-namespace Core
+public abstract class Singleton<T> : MonoBehaviour where T : Singleton<T>
 {
-    /// <summary>
-    /// 单例基类
-    /// </summary>
-    public abstract class Singleton<T> : MonoBehaviour where T : MonoBehaviour
-    {
-        private static readonly object _lock = new object();
-        private static T _instance;
-        private static bool _isInitializing = false;  // 添加初始化标志
+    private static T _instance;
+    private static readonly object _lock = new object();
+    private bool _isMarkedUnique;
 
-        /// <summary>
-        /// 获取单例实例
-        /// </summary>
-        public static T Instance
+    public static T Instance
+    {
+        get
         {
-            get
+            if (_instance == null)
             {
-                if (_instance == null)
+                lock (_lock)
                 {
-                    lock (_lock)
+                    if (_instance == null)
                     {
+                        _instance = FindObjectOfType<T>();
                         if (_instance == null)
                         {
-                            _instance = FindObjectOfType<T>();
-                            if (_instance == null)
-                            {
-                                var go = new GameObject($"[{typeof(T).Name}]");
-                                _isInitializing = true;  // 标记正在初始化
-                                _instance = go.AddComponent<T>();
-                                _isInitializing = false;  // 初始化完成
-                            }
+                            GameObject singletonObject = new GameObject();
+                            _instance = singletonObject.AddComponent<T>();
+                            singletonObject.name = typeof(T).ToString() + " (Singleton)";
                         }
+                        _instance.InitializeInstance();
                     }
                 }
-                return _instance;
             }
+            return _instance;
         }
+    }
 
-        /// <summary>
-        /// 获取当前实例（不创建新实例）
-        /// </summary>
-        public static T CurrentInstance => _instance;
-
-        protected virtual void Awake()
+    private void InitializeInstance()
+    {
+        var methodStartTime = DateTime.Now;
+        Debug.Log($"\n[Singleton] [{methodStartTime:HH:mm:ss.fff}] {gameObject.name} 开始初始化");
+        Debug.Log($"[Singleton] 线程信息: ID={Thread.CurrentThread.ManagedThreadId}, 是否主线程={Thread.CurrentThread.IsBackground}");
+        Debug.Log($"[Singleton] 当前锁状态: {System.Threading.Monitor.IsEntered(_lock)}");
+        
+        lock (_lock)
         {
-            Debug.Log($"[Singleton] {Time.time} Awake called on {gameObject.name}, IsInitializing: {_isInitializing}");
+            var lockAcquireTime = DateTime.Now;
+            Debug.Log($"[Singleton] [{lockAcquireTime:HH:mm:ss.fff}] 获取锁, 耗时: {(lockAcquireTime - methodStartTime).TotalMilliseconds:F2}ms");
             
-            lock (_lock)  // 使用同一个锁确保线程安全
+            try
             {
-                if (_isInitializing)
-                {
-                    // 如果是通过Instance属性创建的，直接返回
-                    Debug.Log($"[Singleton] {Time.time} {gameObject.name} is being initialized through Instance property");
-                    return;
-                }
-
+                LogCurrentState("进入锁区域后");
+                
                 if (_instance == null)
                 {
-                    // 如果没有实例，将自己设置为实例
-                    Debug.Log($"[Singleton] {Time.time} Setting {gameObject.name} as first instance");
-                    _instance = this as T;
+                    HandleNullInstance();
                 }
                 else if (_instance != this)
                 {
-                    // 如果已经有实例，且不是自己，则销毁自己
-                    Debug.Log($"[Singleton] {Time.time} Destroying duplicate {gameObject.name}, current instance: {_instance.name}");
-                    #if UNITY_EDITOR
-                    if (!Application.isPlaying)
-                    {
-                        DestroyImmediate(gameObject);
-                    }
-                    else
-                    {
-                        Destroy(gameObject);
-                    }
-                    #else
-                    Destroy(gameObject);
-                    #endif
+                    HandleDuplicateInstance();
                 }
-            }
-        }
-
-        /// <summary>
-        /// 对象销毁时的处理
-        /// </summary>
-        protected virtual void OnDestroy()
-        {
-            lock (_lock)
-            {
-                if (_instance == this)
+                else
                 {
-                    Debug.Log($"[Singleton] {Time.time} Clearing instance reference from {gameObject.name}");
-                    _instance = null;
+                    Debug.Log($"[Singleton] [{DateTime.Now:HH:mm:ss.fff}] 当前对象已经是实例: {gameObject.name}");
                 }
+                
+                LogCurrentState("初始化完成后");
             }
-        }
-
-        /// <summary>
-        /// 重置单例实例
-        /// </summary>
-        public static void ResetInstance()
-        {
-            lock (_lock)
+            catch (Exception ex)
             {
-                if (_instance != null)
-                {
-                    Debug.Log($"[Singleton] {Time.time} Resetting instance: {_instance.name}");
-                    #if UNITY_EDITOR
-                    if (!Application.isPlaying)
-                    {
-                        DestroyImmediate(_instance.gameObject);
-                    }
-                    else
-                    {
-                        Destroy(_instance.gameObject);
-                    }
-                    #endif
-                    _instance = null;
-                }
-                _isInitializing = false;
+                Debug.LogError($"[Singleton] [{DateTime.Now:HH:mm:ss.fff}] 初始化过程中发生异常:");
+                Debug.LogError($"异常类型: {ex.GetType().FullName}");
+                Debug.LogError($"异常消息: {ex.Message}");
+                Debug.LogError($"堆栈跟踪:\n{ex.StackTrace}");
+                throw;
             }
-        }
-
-        protected virtual void OnApplicationQuit()
-        {
-            Debug.Log($"[Singleton] {Time.time} OnApplicationQuit called on {gameObject.name}");
-            lock (_lock)
+            finally
             {
-                if (_instance == this)
-                {
-                    _instance = null;
-                }
+                var endTime = DateTime.Now;
+                Debug.Log($"[Singleton] [{endTime:HH:mm:ss.fff}] 退出锁区域");
+                Debug.Log($"[Singleton] 总耗时: {(endTime - methodStartTime).TotalMilliseconds:F2}ms");
             }
         }
+    }
+
+    private void HandleNullInstance()
+    {
+        Debug.Log($"[Singleton] [{DateTime.Now:HH:mm:ss.fff}] 没有现有实例，设置当前对象");
+        LogGameObjectDetails(gameObject, "新实例");
+        
+        _instance = this as T;
+        MarkAsUnique();
+        SetDontDestroyOnLoad();
+        
+        Debug.Log($"[Singleton] 首次实例化完成: {gameObject.name}, IsUnique: {_isMarkedUnique}");
+    }
+
+    private void HandleDuplicateInstance()
+    {
+        Debug.Log($"[Singleton] [{DateTime.Now:HH:mm:ss.fff}] 发现重复实例");
+        LogGameObjectDetails(_instance.gameObject, "现有实例");
+        LogGameObjectDetails(gameObject, "新实例");
+        
+        var oldInstance = _instance;
+        Debug.Log($"[Singleton] 保存旧实例引用: {oldInstance.name}");
+        
+        _instance = this as T;
+        MarkAsUnique();
+        SetDontDestroyOnLoad();
+        
+        if (oldInstance != null)
+        {
+            var oldGameObject = oldInstance.gameObject;
+            if (oldGameObject != null)
+            {
+                Debug.Log($"[Singleton] [{DateTime.Now:HH:mm:ss.fff}] 准备销毁旧实例");
+                LogGameObjectDetails(oldGameObject, "待销毁实例");
+                DestroyImmediate(oldGameObject);
+                Debug.Log($"[Singleton] [{DateTime.Now:HH:mm:ss.fff}] 旧实例已销毁");
+            }
+        }
+    }
+
+    private void LogCurrentState(string context)
+    {
+        Debug.Log($"\n[Singleton] --- 当前状态 [{context}] ---");
+        Debug.Log($"当前时间: {DateTime.Now:HH:mm:ss.fff}");
+        Debug.Log($"_instance: {(_instance != null ? _instance.name : "null")}");
+        Debug.Log($"this: {gameObject.name}");
+        Debug.Log($"IsMarkedUnique: {_isMarkedUnique}");
+        if (_instance != null)
+        {
+            LogGameObjectDetails(_instance.gameObject, "当前实例");
+        }
+    }
+
+    private void LogGameObjectDetails(GameObject go, string context)
+    {
+        Debug.Log($"\n[Singleton] --- GameObject详情 [{context}] ---");
+        Debug.Log($"名称: {go.name}");
+        Debug.Log($"实例ID: {go.GetInstanceID()}");
+        Debug.Log($"是否激活: {go.activeInHierarchy}");
+        Debug.Log($"层级: {go.layer}");
+        Debug.Log($"位置: {go.transform.position}");
+        Debug.Log($"是否是预制体实例: {PrefabUtility.IsPartOfPrefabInstance(go)}");
+        Debug.Log($"完整路径: {GetGameObjectPath(go)}");
+        Debug.Log($"组件数量: {go.GetComponents<Component>().Length}");
+    }
+
+    private string GetGameObjectPath(GameObject obj)
+    {
+        string path = obj.name;
+        while (obj.transform.parent != null)
+        {
+            obj = obj.transform.parent.gameObject;
+            path = obj.name + "/" + path;
+        }
+        return path;
+    }
+
+    private void MarkAsUnique()
+    {
+        _isMarkedUnique = true;
+    }
+
+    private void SetDontDestroyOnLoad()
+    {
+        DontDestroyOnLoad(gameObject);
     }
 }

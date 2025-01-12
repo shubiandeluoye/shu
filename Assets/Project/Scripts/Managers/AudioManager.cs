@@ -4,10 +4,6 @@ using Core;
 
 namespace Core.Managers
 {
-    /// <summary>
-    /// 音频管理器
-    /// 处理游戏音频的播放和管理
-    /// </summary>
     public class AudioManager : Singleton<AudioManager>
     {
         [System.Serializable]
@@ -34,9 +30,6 @@ namespace Core.Managers
             InitializeAudio();
         }
 
-        /// <summary>
-        /// 初始化音频系统
-        /// </summary>
         private void InitializeAudio()
         {
             soundDictionary = new Dictionary<string, Sound>();
@@ -56,10 +49,6 @@ namespace Core.Managers
             }
         }
 
-        /// <summary>
-        /// 播放指定名称的音频
-        /// </summary>
-        /// <param name="name">音频名称</param>
         public void PlaySound(string name)
         {
             if (soundDictionary.TryGetValue(name, out Sound sound))
@@ -68,14 +57,10 @@ namespace Core.Managers
             }
             else
             {
-                Debug.LogWarning($"[音频系统] 未找到音频 {name}！");
+                Debug.LogWarning($"[AudioManager] 未找到音频 {name}");
             }
         }
 
-        /// <summary>
-        /// 停止指定名称的音频
-        /// </summary>
-        /// <param name="name">音频名称</param>
         public void StopSound(string name)
         {
             if (soundDictionary.TryGetValue(name, out Sound sound))
@@ -84,11 +69,6 @@ namespace Core.Managers
             }
         }
 
-        /// <summary>
-        /// 设置指定音频的音量
-        /// </summary>
-        /// <param name="name">音频名称</param>
-        /// <param name="volume">音量值（0-1）</param>
         public void SetVolume(string name, float volume)
         {
             if (soundDictionary.TryGetValue(name, out Sound sound))
@@ -97,9 +77,6 @@ namespace Core.Managers
             }
         }
 
-        /// <summary>
-        /// 暂停所有音频
-        /// </summary>
         public void PauseAll()
         {
             foreach (var sound in soundDictionary.Values)
@@ -108,9 +85,6 @@ namespace Core.Managers
             }
         }
 
-        /// <summary>
-        /// 恢复所有音频
-        /// </summary>
         public void ResumeAll()
         {
             foreach (var sound in soundDictionary.Values)
@@ -119,9 +93,6 @@ namespace Core.Managers
             }
         }
 
-        /// <summary>
-        /// 停止所有音频
-        /// </summary>
         public void StopAll()
         {
             foreach (var sound in soundDictionary.Values)
