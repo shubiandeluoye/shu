@@ -4,7 +4,9 @@
     "references": [
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
-        "ProjectScripts"
+        "ProjectScripts",
+        "Core.Runtime",
+        "Managers.Runtime"
     ],
     "includePlatforms": [
         "Editor"
