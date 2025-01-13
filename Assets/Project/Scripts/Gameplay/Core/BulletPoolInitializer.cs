@@ -18,8 +18,8 @@ public class BulletPoolInitializer : MonoBehaviour
             bulletPrefab.AddComponent<BulletPrefabSetup>();
         }
 
-        // Initialize bullet pool
-        ObjectPool.Instance.CreatePool("Bullet", bulletPrefab, INITIAL_POOL_SIZE);
-        Debug.Log($"[BulletPoolInitializer] Created bullet pool with size {INITIAL_POOL_SIZE}");
+        // Initialize bullet pool with max size
+        ObjectPool.Instance.CreatePool("Bullet", bulletPrefab, INITIAL_POOL_SIZE, MAX_POOL_SIZE);
+        Debug.Log($"[BulletPoolInitializer] Created bullet pool with initial size {INITIAL_POOL_SIZE}, max size {MAX_POOL_SIZE}");
     }
 }

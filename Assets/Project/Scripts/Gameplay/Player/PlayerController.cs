@@ -32,10 +32,25 @@ public class PlayerController : NetworkBehaviour, ITestablePlayer
         inputManager = InputManager.Instance;
         eventManager = EventManager.Instance;
         
-        // Set initial collider size
+        // Configure BoxCollider2D
         if (playerCollider == null)
             playerCollider = gameObject.AddComponent<BoxCollider2D>();
         playerCollider.size = Vector2.one; // 1x1 size
+        playerCollider.isTrigger = false;
+        
+        // Configure Rigidbody2D
+        var rb = gameObject.GetComponent<Rigidbody2D>();
+        if (rb == null)
+            rb = gameObject.AddComponent<Rigidbody2D>();
+        rb.isKinematic = true;
+        rb.interpolation = RigidbodyInterpolation2D.Interpolate;
+        rb.collisionDetection = CollisionDetectionMode2D.Continuous;
+        rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+        
+        // Configure NetworkObject prediction
+        var networkObject = GetComponent<NetworkObject>();
+        if (networkObject != null)
+            networkObject.PredictionMode = NetworkPredictionMode.Full;
 
         // Subscribe to input events
         inputManager.OnMove += HandleMove;

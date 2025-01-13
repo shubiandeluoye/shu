@@ -1,22 +1,39 @@
 using UnityEngine;
 using System.Collections;
+using Fusion;
 
 /// <summary>
 /// Controls bullet behavior including movement, collision, and bouncing
+/// Supports network synchronization and specific shooting angles
 /// </summary>
-public class BulletController : MonoBehaviour
+public class BulletController : NetworkBehaviour
 {
     [Header("Bullet Properties")]
     [SerializeField] private float speed = 8f;
     [SerializeField] private float damage = 1f;
     [SerializeField] private Color bulletColor = new Color(1f, 0.5f, 0f); // Orange
 
-    private int bounceCount = 0;
+    [Networked] private int BounceCount { get; set; }
+    [Networked] private Vector2 Direction { get; set; }
+    [Networked] private TickTimer DestroyTimer { get; set; }
+    
     private const int MAX_BOUNCES = 3;
-    private Vector2 direction;
     private PoolObject poolObject;
     private SpriteRenderer spriteRenderer;
     private CircleCollider2D circleCollider;
+    
+    // Network prediction settings
+    public override void Spawned()
+    {
+        if (Object.HasStateAuthority)
+        {
+            DestroyTimer = TickTimer.CreateFromSeconds(Runner, Random.Range(8f, 10f));
+        }
+        
+        var netObj = GetComponent<NetworkObject>();
+        if (netObj != null)
+            netObj.PredictionMode = NetworkPredictionMode.Full;
+    }
 
     private void Awake()
     {
@@ -35,41 +52,73 @@ public class BulletController : MonoBehaviour
         circleCollider.radius = 0.5f;
     }
 
-    public void Initialize(Vector2 startDirection, float angle)
+    public void Initialize(Vector2 startDirection)
     {
-        direction = Quaternion.Euler(0, 0, angle) * startDirection;
-        bounceCount = 0;
+        if (!Object.HasStateAuthority) return;
         
-        // Random lifetime between 8-10 seconds
-        float lifetime = Random.Range(8f, 10f);
-        poolObject.Initialize("Bullet", ObjectPool.Instance, lifetime);
+        Direction = startDirection.normalized;
+        BounceCount = 0;
+        DestroyTimer = TickTimer.CreateFromSeconds(Runner, Random.Range(8f, 10f));
+        
+        if (poolObject != null)
+            poolObject.Initialize("Bullet", ObjectPool.Instance);
+    }
+    
+    // Helper methods for testing and angle-based shooting
+    public Vector2 GetDirection() => Direction;
+    public int GetBounceCount() => BounceCount;
+    
+    public static Vector2 GetDirectionFromAngle(float angle)
+    {
+        // Convert angle to radians and calculate direction
+        float rad = angle * Mathf.Deg2Rad;
+        return new Vector2(Mathf.Cos(rad), Mathf.Sin(rad)).normalized;
     }
 
-    private void Update()
+    public override void FixedUpdateNetwork()
     {
+        if (!Object.HasStateAuthority) return;
+        
         // Move bullet
-        transform.Translate(direction * speed * Time.deltaTime);
+        transform.position += (Vector3)(Direction * speed * Runner.DeltaTime);
+        
+        // Check lifetime
+        if (DestroyTimer.Expired(Runner))
+        {
+            if (poolObject != null)
+                ObjectPool.Instance.ReturnToPool("Bullet", gameObject);
+            else
+                Runner.Despawn(Object);
+        }
     }
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        if (bounceCount >= MAX_BOUNCES)
+        if (!Object.HasStateAuthority) return;
+        
+        if (BounceCount >= MAX_BOUNCES)
         {
-            ReturnToPool();
+            if (poolObject != null)
+                ObjectPool.Instance.ReturnToPool("Bullet", gameObject);
+            else
+                Runner.Despawn(Object);
             return;
         }
 
         // Calculate bounce direction
         Vector2 normal = collision.contacts[0].normal;
-        direction = Vector2.Reflect(direction, normal);
-        bounceCount++;
+        Direction = Vector2.Reflect(Direction, normal);
+        BounceCount++;
 
         // Handle player hit
-        var player = collision.gameObject.GetComponent<PlayerController>();
-        if (player != null)
+        var networkPlayer = collision.gameObject.GetComponent<NetworkPlayer>();
+        if (networkPlayer != null)
         {
-            player.TakeDamage(damage);
-            ReturnToPool();
+            networkPlayer.TakeDamage(damage);
+            if (poolObject != null)
+                ObjectPool.Instance.ReturnToPool("Bullet", gameObject);
+            else
+                Runner.Despawn(Object);
         }
     }
 
@@ -79,10 +128,13 @@ public class BulletController : MonoBehaviour
             ObjectPool.Instance.ReturnToPool("Bullet", gameObject);
     }
 
-    private void OnDisable()
+    public override void Despawned(NetworkRunner runner, bool hasState)
     {
-        // Reset state when returned to pool
-        bounceCount = 0;
-        direction = Vector2.zero;
+        // Reset networked state
+        if (Object.HasStateAuthority)
+        {
+            BounceCount = 0;
+            Direction = Vector2.zero;
+        }
     }
 }
