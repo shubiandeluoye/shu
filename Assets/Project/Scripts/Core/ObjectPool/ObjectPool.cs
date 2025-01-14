@@ -1,152 +1,96 @@
 using UnityEngine;
 using System.Collections.Generic;
-using Core;
+using System.Collections;
+using System.Linq;
 
 namespace Core.ObjectPool
 {
     public class ObjectPool : MonoBehaviour
     {
-        [System.Serializable]
-        public class Pool
+        private static ObjectPool instance;
+        public static ObjectPool Instance
         {
-            public string poolId;
-            public GameObject prefab;
-            public int size;
+            get
+            {
+                if (instance == null)
+                {
+                    var go = new GameObject("ObjectPool");
+                    instance = go.AddComponent<ObjectPool>();
+                }
+                return instance;
+            }
         }
 
-        [SerializeField]
-        private List<Pool> pools = new List<Pool>();
-        private Dictionary<string, Queue<GameObject>> poolDictionary;
-        private Dictionary<string, GameObject> prefabDictionary;
-        private Dictionary<string, Transform> poolParents;
+        private Dictionary<string, Queue<GameObject>> pools = new Dictionary<string, Queue<GameObject>>();
+        private Dictionary<GameObject, float> lifetimes = new Dictionary<GameObject, float>();
 
         private void Awake()
         {
-            InitializeDictionaries();
+            if (instance == null)
+                instance = this;
+            else
+                Destroy(gameObject);
         }
 
-        private void InitializeDictionaries()
+        public GameObject GetObject(GameObject prefab, float lifetime = 0)
         {
-            poolDictionary = new Dictionary<string, Queue<GameObject>>();
-            prefabDictionary = new Dictionary<string, GameObject>();
-            poolParents = new Dictionary<string, Transform>();
-        }
-
-        private void Start()
-        {
-            if (pools != null)
+            string key = prefab.name;
+            if (!pools.ContainsKey(key))
             {
-                foreach (Pool pool in pools)
-                {
-                    if (pool != null && pool.prefab != null)
-                    {
-                        CreatePool(pool.poolId, pool.prefab, pool.size);
-                    }
-                }
-            }
-        }
-
-        public void CreatePool(string poolId, GameObject prefab, int size)
-        {
-            if (prefab == null)
-            {
-                Debug.LogError($"[ObjectPool] Prefab for pool {poolId} is null");
-                return;
+                pools[key] = new Queue<GameObject>();
             }
 
-            GameObject poolParent = new GameObject($"Pool_{poolId}");
-            poolParent.transform.SetParent(transform);
-            poolParents[poolId] = poolParent.transform;
-
-            Queue<GameObject> objectPool = new Queue<GameObject>();
-            prefabDictionary[poolId] = prefab;
-
-            for (int i = 0; i < size; i++)
+            GameObject obj;
+            if (pools[key].Count == 0)
             {
-                GameObject obj = CreateNewObject(poolId, prefab);
-                objectPool.Enqueue(obj);
+                obj = Instantiate(prefab, transform);
+                obj.name = prefab.name;
             }
-
-            poolDictionary[poolId] = objectPool;
-        }
-
-        private GameObject CreateNewObject(string poolId, GameObject prefab)
-        {
-            GameObject obj = Instantiate(prefab, poolParents[poolId]);
-            obj.SetActive(false);
+            else
+            {
+                obj = pools[key].Dequeue();
+            }
             
-            var poolObject = obj.AddComponent<PoolObject>();
-            poolObject.Initialize(poolId, this);
+            obj.SetActive(true);
+            
+            if (lifetime > 0)
+            {
+                lifetimes[obj] = Time.time + lifetime;
+                StartCoroutine(AutoReturn(obj, lifetime));
+            }
             
             return obj;
         }
 
-        public GameObject SpawnFromPool(string poolId, Vector3 position, Quaternion rotation)
+        public void ReturnObject(GameObject obj)
         {
-            if (!poolDictionary.ContainsKey(poolId))
+            string key = obj.name.Replace("(Clone)", "").Trim();
+            if (pools.ContainsKey(key))
             {
-                Debug.LogWarning($"[ObjectPool] Pool {poolId} does not exist");
-                return null;
-            }
-
-            Queue<GameObject> pool = poolDictionary[poolId];
-
-            if (pool.Count == 0)
-            {
-                GameObject newObj = CreateNewObject(poolId, prefabDictionary[poolId]);
-                pool.Enqueue(newObj);
-            }
-
-            GameObject objectToSpawn = pool.Dequeue();
-            objectToSpawn.SetActive(true);
-            objectToSpawn.transform.position = position;
-            objectToSpawn.transform.rotation = rotation;
-
-            return objectToSpawn;
-        }
-
-        public void ReturnToPool(string poolId, GameObject objectToReturn)
-        {
-            if (!poolDictionary.ContainsKey(poolId))
-            {
-                Debug.LogWarning($"[ObjectPool] Pool {poolId} does not exist");
-                return;
-            }
-
-            objectToReturn.SetActive(false);
-            poolDictionary[poolId].Enqueue(objectToReturn);
-        }
-    }
-
-    public class PoolObject : MonoBehaviour
-    {
-        private string poolId;
-        private ObjectPool pool;
-        private float? autoRecycleTime;
-
-        public void Initialize(string poolId, ObjectPool objectPool, float? recycleTime = null)
-        {
-            this.poolId = poolId;
-            pool = objectPool;
-            autoRecycleTime = recycleTime;
-
-            if (autoRecycleTime.HasValue)
-            {
-                StartCoroutine(AutoRecycle());
+                obj.SetActive(false);
+                pools[key].Enqueue(obj);
+                lifetimes.Remove(obj);
             }
         }
 
-        private System.Collections.IEnumerator AutoRecycle()
+        private IEnumerator AutoReturn(GameObject obj, float delay)
         {
-            yield return new WaitForSeconds(autoRecycleTime.Value);
-            RecycleNow();
+            yield return new WaitForSeconds(delay);
+            if (obj != null && obj.activeInHierarchy)
+            {
+                ReturnObject(obj);
+            }
         }
 
-        public void RecycleNow()
+        private void Update()
         {
-            if (gameObject.activeInHierarchy && pool != null)
+            var time = Time.time;
+            foreach (var kvp in lifetimes.ToArray())
             {
-                pool.ReturnToPool(poolId, gameObject);
+                if (time >= kvp.Value)
+                {
+                    ReturnObject(kvp.Key);
+                }
             }
         }
     }

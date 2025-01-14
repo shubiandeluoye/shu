@@ -4,13 +4,12 @@ using UnityEngine;
 using UnityEngine.TestTools;
 using Core.ObjectPool;
 
-namespace Tests.PlayMode.Core
+namespace Tests.PlayMode
 {
     public class PlayModeObjectPoolTests
     {
         private ObjectPool _objectPool;
         private GameObject _testPrefab;
-        private const string TEST_POOL_ID = "TestPool";
 
         [UnitySetUp]
         public IEnumerator Setup()
@@ -19,57 +18,35 @@ namespace Tests.PlayMode.Core
             
             var poolGO = new GameObject("ObjectPool");
             _objectPool = poolGO.AddComponent<ObjectPool>();
-            Debug.Log($"对象池组件已创建: {_objectPool != null}");
             
             _testPrefab = new GameObject("TestPrefab");
-            Debug.Log($"测试预制体已创建: {_testPrefab != null}");
-
+            
             yield return null;
         }
 
         [UnityTest]
-        public IEnumerator PoolObject_AutoRecycle_DelayedReturn()
+        public IEnumerator ObjectPool_GetAndReturn_WorksCorrectly()
         {
-            Debug.Log("开始自动回收延迟测试...");
-            
-            // Arrange
-            _objectPool.CreatePool(TEST_POOL_ID, _testPrefab, 1);
-            yield return new WaitForSeconds(0.1f);
-            
-            var spawnedObject = _objectPool.SpawnFromPool(TEST_POOL_ID, Vector3.zero, Quaternion.identity);
-            Assert.That(spawnedObject, Is.Not.Null, "生成的对象不应为空");
+            var obj1 = _objectPool.GetObject(_testPrefab);
+            Assert.That(obj1, Is.Not.Null, "应该能获取对象");
+            Assert.That(obj1.activeInHierarchy, Is.True, "对象应该是激活的");
 
-            var poolObject = spawnedObject.GetComponent<PoolObject>();
-            Assert.That(poolObject, Is.Not.Null, "对象应该有PoolObject组件");
-            
-            // Act
-            Debug.Log($"初始化PoolObject，设置自动回收时间为0.5秒，当前状态: {spawnedObject.activeInHierarchy}");
-            poolObject.Initialize(TEST_POOL_ID, _objectPool, 0.5f);
-            Assert.That(spawnedObject.activeInHierarchy, Is.True, "对象初始应该处于激活状态");
+            _objectPool.ReturnObject(obj1);
+            Assert.That(obj1.activeInHierarchy, Is.False, "返回的对象应该是禁用的");
 
-            // 等待足够的时间让自动回收发生
-            Debug.Log("等待自动回收...");
-            yield return new WaitForSeconds(1f);
+            var obj2 = _objectPool.GetObject(_testPrefab);
+            Assert.That(obj2, Is.EqualTo(obj1), "应该重用同一个对象");
 
-            // Assert
-            Debug.Log($"最终检查对象状态: 激活={spawnedObject.activeInHierarchy}");
-            Assert.That(spawnedObject.activeInHierarchy, Is.False, "对象应该在延迟后被禁用");
+            yield return null;
         }
 
         [UnityTearDown]
         public IEnumerator Cleanup()
         {
-            Debug.Log("清理PlayMode测试环境...");
             if (_objectPool != null)
-            {
                 Object.Destroy(_objectPool.gameObject);
-                Debug.Log("对象池已销毁");
-            }
             if (_testPrefab != null)
-            {
                 Object.Destroy(_testPrefab);
-                Debug.Log("测试预制体已销毁");
-            }
             yield return null;
         }
     }

@@ -30,4 +30,23 @@ public class GameplayEvents
         public int LoserId { get; set; }
         public string Reason { get; set; }
     }
+
+    public class PlayerOutOfBoundsEvent
+    {
+        public int PlayerId { get; set; }
+        public Vector2 Position { get; set; }
+    }
+
+    public class CentralAreaChargingEvent
+    {
+        public Vector2 Position { get; set; }
+        public int BulletCount { get; set; }
+    }
+
+    public class CentralAreaExplodedEvent
+    {
+        public Vector2 Position { get; set; }
+        public int BulletCount { get; set; }
+        public float ChargeTime { get; set; }
+    }
 }

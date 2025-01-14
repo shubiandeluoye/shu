@@ -1,174 +1,144 @@
 using UnityEngine;
-using Fusion;
-using System;
-
-/// <summary>
-/// Handles player movement, health, and network synchronization
-/// Implements 8-direction movement with wall collision and out-of-bounds detection
-/// </summary>
-public class PlayerController : NetworkBehaviour, ITestablePlayer
+using Core.InputSystem;
+using Core.EventSystem;
+using Core.ObjectPool;
+using Core.FSM;
+using Gameplay.Core;
+using System.Collections;
+using Gameplay.Bullet;
+// TODO: 等 AudioManager 就绪后再添加
+// using Core.Audio;
+namespace Gameplay
 {
-    [Header("Movement Settings")]
-    [SerializeField] private float moveSpeed = 5f;
-    [SerializeField] private Vector2 movementBounds = new Vector2(7f, 7f);
-    [SerializeField] private BoxCollider2D playerCollider;
-
-    [Networked] public float Health { get; set; } = 100f;
-    [Networked] public NetworkBool IsAlive { get; set; } = true;
-    [Networked] public Vector3 Position { get; set; }
-    [Networked] public float ShootAngle { get; set; }
-
-    private InputManager inputManager;
-    private EventManager eventManager;
-    private Vector2 moveDirection;
-    private bool isOutOfBounds;
-
-    public Vector3 ITestablePlayer.Position => transform.position;
-    float ITestablePlayer.Health => Health;
-    bool ITestablePlayer.IsAlive => IsAlive;
-
-    public override void Spawned()
+    public class PlayerController : MonoBehaviour
     {
-        inputManager = InputManager.Instance;
-        eventManager = EventManager.Instance;
+        [Header("Movement")]
+        [SerializeField] private float maxHealth = 100f;
+        [SerializeField] private GameObject bulletPrefab;
         
-        // Set initial collider size
-        if (playerCollider == null)
-            playerCollider = gameObject.AddComponent<BoxCollider2D>();
-        playerCollider.size = Vector2.one; // 1x1 size
+        private float currentHealth;
+        private Vector2 moveDirection;
+        private bool canShoot = true;
+        private float shootAngle;
 
-        // Subscribe to input events
-        inputManager.OnMove += HandleMove;
-        inputManager.OnShootSmall += HandleShootStraight;
-        inputManager.OnDirectionChange += HandleDirectionalShot;
-        inputManager.OnAngleChange += HandleAngleToggle;
-    }
-
-    public override void Despawned(NetworkRunner runner, bool hasState)
-    {
-        // Unsubscribe from events
-        if (inputManager != null)
-            inputManager.OnMove -= HandleMove;
-    }
-
-    private void HandleMove(Vector2 direction)
-    {
-        // Local input handling - will be sent through network input
-        if (Object.HasInputAuthority)
+        private void Start()
         {
-            var input = new NetworkInputData
-            {
-                HorizontalInput = direction.x,
-                VerticalInput = direction.y
-            };
-            Runner.SetPlayerInput(input);
+            currentHealth = maxHealth;
         }
-    }
 
-    public override void FixedUpdateNetwork()
-    {
-        if (!Object.HasStateAuthority) return;
-
-        // Get networked input
-        if (GetInput(out NetworkInputData input))
+        private void Update()
         {
-            // Apply movement
-            Vector3 movement = new Vector3(input.HorizontalInput, input.VerticalInput, 0).normalized * moveSpeed * Runner.DeltaTime;
-            Vector3 newPosition = transform.position + movement;
+            // 使用 InputManager 获取输入
+            Vector2 moveInput = InputManager.Instance.GetMoveDirection();
+            float shootAngle = InputManager.Instance.GetShootAngle();
 
-            // Check bounds
-            bool wasOutOfBounds = isOutOfBounds;
-            isOutOfBounds = CheckOutOfBounds(newPosition);
+            // 处理移动
+            HandleMovement(moveInput);
 
-            // Handle wall collisions and bounds
-            newPosition = ClampPosition(newPosition);
+            // 处理射击
+            HandleShooting(shootAngle);
+        }
 
-            // Update networked position with interpolation
+        private void HandleMovement(Vector2 input)
+        {
+            // 规范化输入向量，确保对角线移动速度一致
+            Vector2 normalizedInput = input.normalized;
+            
+            // 计算新位置
+            Vector3 newPosition = transform.position + new Vector3(
+                normalizedInput.x * GameplayConstants.Player.DEFAULT_MOVE_SPEED * Time.deltaTime,
+                normalizedInput.y * GameplayConstants.Player.DEFAULT_MOVE_SPEED * Time.deltaTime,
+                0
+            );
+
+            // 限制在游戏区域内
+            newPosition.x = Mathf.Clamp(newPosition.x, 
+                -GameplayConstants.Bounds.HALF_WIDTH, 
+                GameplayConstants.Bounds.HALF_WIDTH);
+            newPosition.y = Mathf.Clamp(newPosition.y, 
+                -GameplayConstants.Bounds.HALF_HEIGHT, 
+                GameplayConstants.Bounds.HALF_HEIGHT);
+
             transform.position = newPosition;
-            Position = newPosition;
-
-            // Handle shooting input
-            if (input.ShootPressed)
-            {
-                ShootAngle = input.ShootAngle;
-                eventManager.TriggerEvent(new PlayerShootEvent 
-                { 
-                    PlayerId = Object.Id,
-                    Angle = input.ShootAngle
-                });
-            }
-
-            // Trigger out of bounds event if state changed
-            if (wasOutOfBounds != isOutOfBounds && isOutOfBounds)
-            {
-                eventManager.TriggerEvent(new PlayerOutOfBoundsEvent { PlayerId = Object.Id });
-            }
         }
-    }
 
-    private bool CheckOutOfBounds(Vector3 position)
-    {
-        // Fourth wall (right side) is out of bounds
-        return position.x > movementBounds.x / 2;
-    }
-
-    private Vector3 ClampPosition(Vector3 position)
-    {
-        // Clamp to movement bounds, allowing right side to trigger out of bounds
-        float clampedX = Mathf.Clamp(position.x, -movementBounds.x / 2, movementBounds.x / 2);
-        float clampedY = Mathf.Clamp(position.y, -movementBounds.y / 2, movementBounds.y / 2);
-        return new Vector3(clampedX, clampedY, 0);
-    }
-
-    public void TakeDamage(float damage)
-    {
-        if (!Object.HasStateAuthority) return;
-        
-        Health = Mathf.Max(0, Health - damage);
-        IsAlive = Health > 0;
-
-        if (!IsAlive)
+        private void HandleShooting(float angle)
         {
-            eventManager.TriggerEvent(new PlayerDefeatedEvent { PlayerId = Object.Id });
+            if (!canShoot) return;
+
+            // 检查射击输入
+            if (InputManager.Instance.IsActionPressed("ShootStraight"))
+            {
+                Shoot(Vector2.right, angle);
+                StartCoroutine(ShootCooldown());
+            }
         }
+
+        private void Shoot(Vector2 direction, float angle)
+        {
+            GameObject bullet = ObjectPool.Instance.GetObject(bulletPrefab);
+
+            if (bullet != null)
+            {
+                // 设置位置
+                bullet.transform.position = transform.position;
+                bullet.transform.rotation = Quaternion.identity;
+                
+                var bulletController = bullet.GetComponent<BulletController>();
+                bulletController.Initialize(direction, angle);
+                
+                // TODO: 等 AudioManager 就绪后再实现
+                // AudioManager.Instance.PlaySound("PlayerShoot");
+            }
+        }
+
+        private IEnumerator ShootCooldown()
+        {
+            canShoot = false;
+            yield return new WaitForSeconds(GameplayConstants.Player.SHOOT_COOLDOWN);
+            canShoot = true;
+        }
+
+        public void TakeDamage(float damage)
+        {
+            currentHealth -= damage;
+            EventManager.Instance.TriggerEvent(new GameplayEvents.PlayerDamagedEvent
+            {
+                PlayerId = gameObject.GetInstanceID(),
+                Damage = damage,
+                RemainingHealth = currentHealth
+            });
+
+            if (currentHealth <= 0)
+            {
+                Die();
+            }
+        }
+
+        private void Die()
+        {
+            // Handle player death
+            gameObject.SetActive(false);
+            EventManager.Instance.TriggerEvent(new GameplayEvents.GameEndEvent
+            {
+                LoserId = gameObject.GetInstanceID(),
+                Reason = "Player Eliminated"
+            });
+        }
+
+        public float CurrentHealth => currentHealth;
+
+        // 为测试添加的方法
+        public void SimulateShoot(float angle)
+        {
+            Shoot(Vector2.right, angle);
+        }
+
+        public void SimulateMove(Vector2 input)
+        {
+            HandleMovement(input);
+        }
+
+        public float Health => currentHealth;
     }
-
-    // ITestablePlayer implementation
-    public void SimulateMove(Vector2 direction)
-    {
-        HandleMove(direction);
-    }
-
-    public void SimulateShoot(float angle)
-    {
-        ShootAngle = angle;
-    }
-
-    public BulletType GetCurrentBulletType()
-    {
-        return BulletType.Small; // Default to small bullet for now
-    }
-
-    public int GetBounceCount()
-    {
-        return 3; // Maximum bounce count
-    }
-}
-
-// Event classes
-public class PlayerOutOfBoundsEvent
-{
-    public int PlayerId { get; set; }
-}
-
-public class PlayerDefeatedEvent
-{
-    public int PlayerId { get; set; }
-}
-
-public enum BulletType
-{
-    Small,
-    Medium,
-    Large
 }

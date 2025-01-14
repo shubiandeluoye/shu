@@ -1,8 +1,8 @@
 using UnityEngine;
 using System.Collections.Generic;
-using Core;
+using Core.Singleton;
 
-namespace Core.Managers
+namespace Managers
 {
     public class AudioManager : Singleton<AudioManager>
     {

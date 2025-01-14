@@ -1,6 +1,6 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using Core;
+using Core.Singleton;
 using Core.FSM;
 using Core.EventSystem;
 

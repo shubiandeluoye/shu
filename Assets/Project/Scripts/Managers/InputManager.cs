@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using System;
 using System.Collections.Generic;
-using Core;
+using Core.Singleton;
 
 namespace Core.Managers
 {
@@ -87,6 +87,36 @@ namespace Core.Managers
                 return actionMap[actionName].IsPressed();
             }
             return false;
+        }
+
+        public Vector2 GetMoveDirection()
+        {
+            Vector2 moveDirection = Vector2.zero;
+            
+            if (actionMaps.TryGetValue("PC", out var pcMap))
+            {
+                var moveAction = pcMap["Move"];
+                if (moveAction != null && moveAction.IsPressed())
+                {
+                    moveDirection = moveAction.ReadValue<Vector2>();
+                }
+            }
+            
+            return moveDirection;
+        }
+
+        public float GetShootAngle()
+        {
+            // 默认角度为0（向右）
+            float angle = 0f;
+            
+            if (actionMaps.TryGetValue("PC", out var pcMap))
+            {
+                if (pcMap["ShootLeft"].IsPressed()) angle = -45f;
+                else if (pcMap["ShootRight"].IsPressed()) angle = 45f;
+            }
+            
+            return angle;
         }
     }
 }

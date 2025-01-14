@@ -1,5 +1,5 @@
 using UnityEngine;
-
+using Gameplay.Bullet; 
 /// <summary>
 /// Sets up the bullet prefab with required components and properties
 /// </summary>
@@ -24,10 +24,10 @@ public class BulletPrefabSetup : MonoBehaviour
         // Configure rigidbody
         rigidbody.isKinematic = true;
         rigidbody.interpolation = RigidbodyInterpolation2D.Interpolate;
-        rigidbody.collisionDetection = CollisionDetectionMode2D.Continuous;
+        rigidbody.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
 
         // Set layer and tag
-        gameObject.layer = LayerMask.NameToLayer("Projectile");
+        gameObject.layer = LayerMask.NameToLayer("Bullet");
         gameObject.tag = "Bullet";
     }
 

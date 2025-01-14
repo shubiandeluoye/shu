@@ -1,145 +1,160 @@
 using UnityEngine;
 using System.Collections;
+using Core.FSM;
+using Core.ObjectPool;
+using Gameplay.Bullet;
 
-/// <summary>
-/// Controls the central area mechanics including bullet collection and firing
-/// </summary>
-public class CentralArea : MonoBehaviour
+namespace Gameplay.Core
 {
-    [Header("Area Properties")]
-    [SerializeField] private float radius = 1f; // For 2x2 circular area
-    [SerializeField] private int requiredBullets = 21;
-    [SerializeField] private Vector2 randomFireInterval = new Vector2(5f, 8f);
-    [SerializeField] private float autoExplodeTime = 30f;
-
-    private CircleCollider2D areaCollider;
-    private int collectedBullets;
-    private float explodeTimer;
-    private StateMachine stateMachine;
-    private bool isCharging;
-
-    private void Awake()
+    /// <summary>
+    /// Controls the central area mechanics including bullet collection and firing
+    /// </summary>
+    public class CentralArea : MonoBehaviour
     {
-        // Set up collider
-        areaCollider = gameObject.AddComponent<CircleCollider2D>();
-        areaCollider.radius = radius;
-        areaCollider.isTrigger = true;
+        [Header("Area Properties")]
+        [SerializeField] private float radius = 1f; // For 2x2 circular area
+        [SerializeField] private int requiredBullets = 21;
+        [SerializeField] private Vector2 randomFireInterval = new Vector2(5f, 8f);
+        [SerializeField] private float autoExplodeTime = 30f;
+        [SerializeField] private GameObject bulletPrefab;
 
-        // Initialize state machine
-        stateMachine = new StateMachine();
-        stateMachine.AddState(new CollectingState(this));
-        stateMachine.AddState(new ChargingState(this));
-        stateMachine.AddState(new FiringState(this));
+        private CircleCollider2D areaCollider;
+        private int collectedBullets;
+        private float explodeTimer;
+        private StateMachine stateMachine;
+        private bool isCharging;
 
-        Reset();
-    }
-
-    private void Start()
-    {
-        stateMachine.ChangeState<CollectingState>();
-        StartCoroutine(AutoExplodeTimer());
-    }
-
-    private void Update()
-    {
-        stateMachine.Update();
-    }
-
-    public void CollectBullet()
-    {
-        collectedBullets++;
-        if (collectedBullets >= requiredBullets)
+        private void Awake()
         {
-            isCharging = true;
-            stateMachine.ChangeState<ChargingState>();
-        }
-    }
+            // Set up collider
+            areaCollider = gameObject.AddComponent<CircleCollider2D>();
+            areaCollider.radius = radius;
+            areaCollider.isTrigger = true;
 
-    public void FireBullets()
-    {
-        // Fire collected bullets in a pattern
-        float angleStep = 360f / collectedBullets;
-        for (int i = 0; i < collectedBullets; i++)
-        {
-            Vector2 direction = Quaternion.Euler(0, 0, angleStep * i) * Vector2.right;
-            var bullet = ObjectPool.Instance.SpawnFromPool("Bullet", transform.position, Quaternion.identity);
-            bullet.GetComponent<BulletController>().Initialize(direction, angleStep * i);
+            // Initialize state machine
+            stateMachine = new StateMachine();
+            stateMachine.AddState(new CollectingState(this));
+            stateMachine.AddState(new ChargingState(this));
+            stateMachine.AddState(new FiringState(this));
+
+            Reset();
         }
 
-        Reset();
-    }
-
-    private void Reset()
-    {
-        collectedBullets = 0;
-        isCharging = false;
-        explodeTimer = autoExplodeTime;
-        stateMachine.ChangeState<CollectingState>();
-    }
-
-    private IEnumerator AutoExplodeTimer()
-    {
-        while (true)
+        private void Start()
         {
-            if (!isCharging)
+            stateMachine.ChangeState<CollectingState>();
+            StartCoroutine(AutoExplodeTimer());
+        }
+
+        private void Update()
+        {
+            stateMachine.Update();
+        }
+
+        public void CollectBullet()
+        {
+            collectedBullets++;
+            if (collectedBullets >= requiredBullets)
             {
-                explodeTimer -= Time.deltaTime;
-                if (explodeTimer <= 0)
+                isCharging = true;
+                stateMachine.ChangeState<ChargingState>();
+            }
+        }
+
+        public void FireBullets()
+        {
+            float angleStep = 360f / collectedBullets;
+            for (int i = 0; i < collectedBullets; i++)
+            {
+                Vector2 direction = Quaternion.Euler(0, 0, angleStep * i) * Vector2.right;
+                var bullet = ObjectPool.Instance.GetObject(bulletPrefab);
+                if (bullet != null)
                 {
-                    FireBullets();
-                    yield break;
+                    bullet.transform.position = transform.position;
+                    bullet.GetComponent<BulletController>().Initialize(direction, angleStep * i);
                 }
             }
-            yield return null;
-        }
-    }
 
-    private void OnTriggerEnter2D(Collider2D other)
-    {
-        if (other.CompareTag("Bullet"))
+            Reset();
+        }
+
+        private void Reset()
         {
-            CollectBullet();
-            ObjectPool.Instance.ReturnToPool("Bullet", other.gameObject);
+            collectedBullets = 0;
+            isCharging = false;
+            explodeTimer = autoExplodeTime;
+            stateMachine.ChangeState<CollectingState>();
+        }
+
+        private IEnumerator AutoExplodeTimer()
+        {
+            while (true)
+            {
+                if (!isCharging)
+                {
+                    explodeTimer -= Time.deltaTime;
+                    if (explodeTimer <= 0)
+                    {
+                        FireBullets();
+                        yield break;
+                    }
+                }
+                yield return null;
+            }
+        }
+
+        private void OnTriggerEnter2D(Collider2D other)
+        {
+            if (other.CompareTag("Bullet"))
+            {
+                CollectBullet();
+                ReturnObjectToPool(other.gameObject);
+            }
+        }
+
+        private void ReturnObjectToPool(GameObject obj)
+        {
+            ObjectPool.Instance.ReturnObject(obj);
         }
     }
-}
 
-// State implementations
-public class CollectingState : IState
-{
-    private CentralArea area;
-    public CollectingState(CentralArea area) => this.area = area;
-    public void Enter() { }
-    public void Update() { }
-    public void Exit() { }
-}
-
-public class ChargingState : IState
-{
-    private CentralArea area;
-    private float chargeTimer;
-    public ChargingState(CentralArea area) => this.area = area;
-    
-    public void Enter()
+    // State implementations
+    public class CollectingState : IState
     {
-        chargeTimer = UnityEngine.Random.Range(5f, 8f);
+        private CentralArea area;
+        public CollectingState(CentralArea area) => this.area = area;
+        public void Enter() { }
+        public void Update() { }
+        public void Exit() { }
     }
-    
-    public void Update()
-    {
-        chargeTimer -= Time.deltaTime;
-        if (chargeTimer <= 0)
-            area.FireBullets();
-    }
-    
-    public void Exit() { }
-}
 
-public class FiringState : IState
-{
-    private CentralArea area;
-    public FiringState(CentralArea area) => this.area = area;
-    public void Enter() => area.FireBullets();
-    public void Update() { }
-    public void Exit() { }
+    public class ChargingState : IState
+    {
+        private CentralArea area;
+        private float chargeTimer;
+        public ChargingState(CentralArea area) => this.area = area;
+        
+        public void Enter()
+        {
+            chargeTimer = UnityEngine.Random.Range(5f, 8f);
+        }
+        
+        public void Update()
+        {
+            chargeTimer -= Time.deltaTime;
+            if (chargeTimer <= 0)
+                area.FireBullets();
+        }
+        
+        public void Exit() { }
+    }
+
+    public class FiringState : IState
+    {
+        private CentralArea area;
+        public FiringState(CentralArea area) => this.area = area;
+        public void Enter() => area.FireBullets();
+        public void Update() { }
+        public void Exit() { }
+    }
 }
