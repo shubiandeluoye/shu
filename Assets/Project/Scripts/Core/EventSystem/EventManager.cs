@@ -2,6 +2,7 @@ using UnityEngine;
 using System;
 using System.Collections.Generic;
 using Core;
+using Core.FSM;
 
 namespace Core.EventSystem
 {
@@ -193,32 +194,5 @@ namespace Core.EventSystem
         {
             eventDictionary.Clear();
         }
-    }
-
-    /// <summary>
-    /// 游戏状态改变事件数据类
-    /// </summary>
-    public class GameStateChangedEvent
-    {
-        /// <summary>
-        /// 新的游戏状态
-        /// </summary>
-        public GameState NewState { get; private set; }
-
-        public GameStateChangedEvent(GameState newState)
-        {
-            NewState = newState;
-        }
-    }
-
-    /// <summary>
-    /// 游戏状态枚举
-    /// </summary>
-    public enum GameState
-    {
-        MainMenu,
-        Playing,
-        Paused,
-        GameOver
     }
 }

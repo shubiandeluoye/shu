@@ -1,12 +1,13 @@
 using UnityEngine;
 using System.Collections;
 using Fusion;
+using Core.ObjectPool;
 
 /// <summary>
 /// Controls bullet behavior including movement, collision, and bouncing
 /// Supports network synchronization and specific shooting angles
 /// </summary>
-public class BulletController : NetworkBehaviour
+public class BulletController : NetworkBehaviour, IPoolable
 {
     [Header("Bullet Properties")]
     [SerializeField] private float speed = 8f;
@@ -128,9 +129,18 @@ public class BulletController : NetworkBehaviour
             ObjectPool.Instance.ReturnToPool("Bullet", gameObject);
     }
 
-    public override void Despawned(NetworkRunner runner, bool hasState)
+    public void OnSpawn()
     {
-        // Reset networked state
+        // 从对象池取出时的初始化逻辑
+        if (Object.HasStateAuthority)
+        {
+            DestroyTimer = TickTimer.CreateFromSeconds(Runner, Random.Range(8f, 10f));
+        }
+    }
+
+    public void OnRecycle()
+    {
+        // 回收到对象池时的清理逻辑
         if (Object.HasStateAuthority)
         {
             BounceCount = 0;

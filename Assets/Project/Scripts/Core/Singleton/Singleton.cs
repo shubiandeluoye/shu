@@ -167,4 +167,19 @@ public abstract class Singleton<T> : MonoBehaviour where T : Singleton<T>
     {
         DontDestroyOnLoad(gameObject);
     }
+
+    protected virtual void OnApplicationQuit()
+    {
+        // 基类的默认实现
+    }
+
+    protected virtual void Awake()
+    {
+        // 基类的默认实现
+    }
+
+    protected virtual void OnAwake()
+    {
+        // 子类可以重写这个方法来添加自己的初始化逻辑
+    }
 }

@@ -1,5 +1,6 @@
 using UnityEngine;
 using Fusion;
+using Gameplay.Player;
 
 /// <summary>
 /// Handles network synchronization for player state and actions
@@ -12,7 +13,7 @@ public class NetworkPlayer : NetworkBehaviour
     [Networked] public NetworkBool IsOutOfBounds { get; set; }
     
     private NetworkRunner _runner;
-    private PlayerController _controller;
+    [SerializeField] private PlayerController playerController;
     private const float INITIAL_HEALTH = 100f;
     
     public override void Spawned()

@@ -1,6 +1,9 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using Core.FSM;
+using Core.EventSystem;
+using Core.Managers;
 
 /// <summary>
 /// Manages in-game UI elements including health, score, and game state
