@@ -6,6 +6,24 @@ namespace Core.ObjectPool
 {
     public class ObjectPool : MonoBehaviour
     {
+        private static ObjectPool instance;
+        public static ObjectPool Instance
+        {
+            get
+            {
+                if (instance == null)
+                {
+                    instance = FindObjectOfType<ObjectPool>();
+                    if (instance == null)
+                    {
+                        GameObject go = new GameObject("ObjectPool");
+                        instance = go.AddComponent<ObjectPool>();
+                    }
+                }
+                return instance;
+            }
+        }
+
         [System.Serializable]
         public class Pool
         {
@@ -21,9 +39,30 @@ namespace Core.ObjectPool
         private Dictionary<string, Transform> poolParents;
         private Dictionary<string, int> maxPoolSizes;
         private Dictionary<string, int> activeObjectCounts;
+        private Dictionary<string, PoolStatistics> poolStatistics;
+
+        public struct PoolStatistics
+        {
+            public int TotalCreated;
+            public int CurrentActive;
+            public int PeakActive;
+            public float LastSpawnTime;
+            public float AverageActiveTime;
+        }
 
         private void Awake()
         {
+            if (instance == null)
+            {
+                instance = this;
+                DontDestroyOnLoad(gameObject);
+            }
+            else if (instance != this)
+            {
+                Destroy(gameObject);
+                return;
+            }
+
             InitializeDictionaries();
         }
 
@@ -34,6 +73,7 @@ namespace Core.ObjectPool
             poolParents = new Dictionary<string, Transform>();
             maxPoolSizes = new Dictionary<string, int>();
             activeObjectCounts = new Dictionary<string, int>();
+            poolStatistics = new Dictionary<string, PoolStatistics>();
         }
 
         private void Start()
@@ -142,6 +182,89 @@ namespace Core.ObjectPool
             if (activeObjectCounts.ContainsKey(poolId))
                 activeObjectCounts[poolId] = Mathf.Max(0, activeObjectCounts[poolId] - 1);
         }
+
+        public void WarmupPool(string poolId, int count)
+        {
+            if (!poolDictionary.ContainsKey(poolId))
+            {
+                Debug.LogWarning($"[ObjectPool] Cannot warmup non-existent pool {poolId}");
+                return;
+            }
+
+            for (int i = 0; i < count; i++)
+            {
+                GameObject obj = CreateNewObject(poolId, prefabDictionary[poolId]);
+                poolDictionary[poolId].Enqueue(obj);
+                UpdateStatistics(poolId, false);
+            }
+        }
+
+        public void TrimPool(string poolId, int targetSize)
+        {
+            if (!poolDictionary.ContainsKey(poolId))
+            {
+                return;
+            }
+
+            Queue<GameObject> pool = poolDictionary[poolId];
+            while (pool.Count > targetSize)
+            {
+                GameObject obj = pool.Dequeue();
+                Destroy(obj);
+                UpdateStatistics(poolId, false);
+            }
+        }
+
+        private void UpdateStatistics(string poolId, bool isSpawn)
+        {
+            if (!poolStatistics.ContainsKey(poolId))
+            {
+                poolStatistics[poolId] = new PoolStatistics();
+            }
+
+            var stats = poolStatistics[poolId];
+            if (isSpawn)
+            {
+                stats.CurrentActive++;
+                stats.PeakActive = Mathf.Max(stats.PeakActive, stats.CurrentActive);
+                stats.LastSpawnTime = Time.time;
+            }
+            else
+            {
+                stats.CurrentActive = Mathf.Max(0, stats.CurrentActive - 1);
+            }
+            poolStatistics[poolId] = stats;
+        }
+
+        public PoolStatistics GetPoolStatistics(string poolId)
+        {
+            return poolStatistics.TryGetValue(poolId, out var stats) ? stats : new PoolStatistics();
+        }
+
+        public List<GameObject> SpawnMultiple(string poolId, Vector3 position, Quaternion rotation, int count)
+        {
+            List<GameObject> spawnedObjects = new List<GameObject>();
+            for (int i = 0; i < count; i++)
+            {
+                GameObject obj = SpawnFromPool(poolId, position, rotation);
+                if (obj != null)
+                {
+                    spawnedObjects.Add(obj);
+                }
+            }
+            return spawnedObjects;
+        }
+
+        public void ReturnToPoolDelayed(string poolId, GameObject objectToReturn, float delay)
+        {
+            StartCoroutine(DelayedReturn(poolId, objectToReturn, delay));
+        }
+
+        private System.Collections.IEnumerator DelayedReturn(string poolId, GameObject objectToReturn, float delay)
+        {
+            yield return new WaitForSeconds(delay);
+            ReturnToPool(poolId, objectToReturn);
+        }
     }
 
     public class PoolObject : MonoBehaviour
@@ -149,6 +272,8 @@ namespace Core.ObjectPool
         private string poolId;
         private ObjectPool pool;
         private float? autoRecycleTime;
+        private System.Action<GameObject> onRecycle;
+        private System.Action<GameObject> onSpawn;
 
         public void Initialize(string poolId, ObjectPool objectPool, float? recycleTime = null)
         {
@@ -174,6 +299,22 @@ namespace Core.ObjectPool
             {
                 pool.ReturnToPool(poolId, gameObject);
             }
+        }
+
+        public void SetCallbacks(System.Action<GameObject> spawnCallback, System.Action<GameObject> recycleCallback)
+        {
+            onSpawn = spawnCallback;
+            onRecycle = recycleCallback;
+        }
+
+        private void OnEnable()
+        {
+            onSpawn?.Invoke(gameObject);
+        }
+
+        private void OnDisable()
+        {
+            onRecycle?.Invoke(gameObject);
         }
     }
 }

@@ -1,4 +1,5 @@
 using UnityEngine;
+using Core.Singleton;
 using System;
 using System.Collections.Generic;
 using Core;
@@ -17,6 +18,14 @@ namespace Core.EventSystem
         /// </summary>
         private Dictionary<Type, List<Delegate>> eventDictionary = new Dictionary<Type, List<Delegate>>();
         private readonly object _eventLock = new object();
+        private Dictionary<Type, int> _eventStats = new Dictionary<Type, int>();
+
+        protected override void OnAwake()
+        {
+            base.OnAwake();
+            // 初始化事件系统
+            eventDictionary.Clear();
+        }
 
         /// <summary>
         /// 为指定事件类型注册事件处理器
@@ -91,6 +100,7 @@ namespace Core.EventSystem
                 {
                     var handler = (Action<T>)listener;
                     handler.Invoke(eventData);
+                    UpdateEventStats(typeof(T));
                     Debug.Log($"[EventManager] 成功执行监听器 {listener.Method.Name}");
                 }
                 catch (Exception ex)
@@ -113,6 +123,18 @@ namespace Core.EventSystem
                     Debug.LogError($"[EventManager] 事件处理过程中发生多个异常 ({exceptions.Count})");
                     throw new AggregateException($"事件 {typeof(T).Name} 处理过程中发生多个错误", exceptions);
                 }
+            }
+        }
+
+        private void UpdateEventStats(Type eventType)
+        {
+            lock (_eventLock)
+            {
+                if (!_eventStats.ContainsKey(eventType))
+                {
+                    _eventStats[eventType] = 0;
+                }
+                _eventStats[eventType]++;
             }
         }
 
@@ -193,6 +215,14 @@ namespace Core.EventSystem
         public void Cleanup()
         {
             eventDictionary.Clear();
+        }
+
+        public int GetEventTriggerCount<T>()
+        {
+            lock (_eventLock)
+            {
+                return _eventStats.TryGetValue(typeof(T), out int count) ? count : 0;
+            }
         }
     }
 }
