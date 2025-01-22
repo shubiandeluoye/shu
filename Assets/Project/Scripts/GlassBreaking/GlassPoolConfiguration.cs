@@ -21,6 +21,11 @@ namespace Project.GlassBreaking
         [Header("碎片池配置")]
         public PoolConfig[] fragmentPools;
 
+        [Header("子弹池配置")]
+        public PoolConfig sphereBulletPool;
+        public PoolConfig capsuleBulletPool;
+        public PoolConfig bookBulletPool;
+
         [Header("特效池配置")]
         public PoolConfig particlePool;
 
@@ -41,6 +46,23 @@ namespace Project.GlassBreaking
                     // 预热对象池
                     ObjectPool.Instance.WarmupPool(config.poolId, config.size);
                 }
+            }
+
+            // 初始化子弹池
+            if (sphereBulletPool.prefab != null)
+            {
+                ObjectPool.Instance.CreatePool("SphereBulletPool", sphereBulletPool.prefab, 20, 50);
+                ObjectPool.Instance.WarmupPool("SphereBulletPool", 20);
+            }
+            if (capsuleBulletPool.prefab != null)
+            {
+                ObjectPool.Instance.CreatePool("CapsuleBulletPool", capsuleBulletPool.prefab, 20, 50);
+                ObjectPool.Instance.WarmupPool("CapsuleBulletPool", 20);
+            }
+            if (bookBulletPool.prefab != null)
+            {
+                ObjectPool.Instance.CreatePool("BookBulletPool", bookBulletPool.prefab, 20, 50);
+                ObjectPool.Instance.WarmupPool("BookBulletPool", 20);
             }
 
             // 初始化特效池
