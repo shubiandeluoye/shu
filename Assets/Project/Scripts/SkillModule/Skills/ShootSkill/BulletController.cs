@@ -3,7 +3,7 @@ using Core.EventSystem;
 
 namespace SkillModule.Skills
 {
-    [RequireComponent(typeof(Rigidbody2D))]
+    [RequireComponent(typeof(Rigidbody))]
     public class BulletController : MonoBehaviour
     {
         // 在 BulletController 内部定义 DamageEvent
@@ -16,7 +16,7 @@ namespace SkillModule.Skills
             public Vector3 Direction;     // 击中方向
         }
 
-        private Rigidbody2D rb;
+        private Rigidbody rb;
         private float damage;
         private float lifetime;
         private float elapsedTime;
@@ -25,19 +25,25 @@ namespace SkillModule.Skills
 
         private void Awake()
         {
-            rb = GetComponent<Rigidbody2D>();
+            rb = GetComponent<Rigidbody>();
             eventManager = EventManager.Instance;
         }
 
-        public void Initialize(Vector2 velocity, float damage, float lifetime)
+        public void Initialize(Vector3 velocity, float damage, float lifetime)
         {
             this.damage = damage;
             this.lifetime = lifetime;
             this.elapsedTime = 0f;
             this.isActive = true;
 
-            rb.velocity = velocity;
-            transform.right = velocity.normalized;
+            // 确保在XZ平面上移动
+            Vector3 flatVelocity = new Vector3(velocity.x, 0, velocity.z);
+            rb.velocity = flatVelocity;
+            
+            // 锁定Y轴
+            rb.constraints = RigidbodyConstraints.FreezePositionY | 
+                           RigidbodyConstraints.FreezeRotationX | 
+                           RigidbodyConstraints.FreezeRotationZ;
         }
 
         private void Update()
@@ -51,7 +57,7 @@ namespace SkillModule.Skills
             }
         }
 
-        private void OnTriggerEnter2D(Collider2D other)
+        private void OnTriggerEnter(Collider other)
         {
             if (!isActive) return;
 

@@ -5,6 +5,7 @@ using Core.EventSystem;
 using PlayerModule.Data;
 using Fusion;
 using PlayerModule.Systems;  
+using UnityEngine.InputSystem;
 
 namespace PlayerModule
 {
@@ -23,6 +24,8 @@ namespace PlayerModule
         private HealthSystem healthSystem;
         private ShootingSystem shootingSystem;
         private NetworkObject networkObject;
+        private Rigidbody rb;
+        private bool isGrounded = false;
         #endregion
 
         #region 配置参数
@@ -43,6 +46,21 @@ namespace PlayerModule
         {
             base.Spawned();
             InitializeSystems();
+        }
+
+        private void Awake()
+        {
+            rb = GetComponent<Rigidbody>();
+            // 初始状态：只锁定旋转，允许自由落地
+            rb.constraints = RigidbodyConstraints.FreezeRotationX | 
+                            RigidbodyConstraints.FreezeRotationZ;
+            
+            // 初始化输入系统
+            var playerInput = GetComponent<PlayerInput>();
+            if (playerInput != null)
+            {
+                playerInput.onActionTriggered += OnInputAction;
+            }
         }
 
         private void InitializeSystems()
@@ -200,6 +218,38 @@ namespace PlayerModule
             EventManager.Instance.RemoveListener<PlayerStunEvent>(OnPlayerStun);
             EventManager.Instance.RemoveListener<PlayerOutOfBoundsEvent>(OnPlayerOutOfBounds);
             EventManager.Instance.RemoveListener<PlayerHealEvent>(OnPlayerHeal);
+        }
+
+        private void OnCollisionEnter(Collision collision)
+        {
+            // 检测是否碰到地面
+            if (!isGrounded && collision.gameObject.CompareTag("Ground"))
+            {
+                isGrounded = true;
+                // 落地后：锁定Y轴位置和XZ轴旋转
+                rb.constraints = RigidbodyConstraints.FreezePositionY | 
+                               RigidbodyConstraints.FreezeRotationX | 
+                               RigidbodyConstraints.FreezeRotationZ;
+            }
+        }
+
+        private void OnInputAction(InputAction.CallbackContext context)
+        {
+            if (!IsInitialized) return;
+
+            // 处理移动输入
+            if (context.action.name == "Move")
+            {
+                Vector2 input = context.ReadValue<Vector2>();
+                Vector3 moveDirection = new Vector3(input.x, 0, input.y);
+                HandleMovementInput(new PlayerInputData 
+                { 
+                    HasMovementInput = true,
+                    MovementDirection = moveDirection 
+                });
+            }
+            
+            // ... 其他输入处理
         }
     }
 } 

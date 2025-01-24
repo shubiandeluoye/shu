@@ -5,7 +5,7 @@ namespace PlayerModule.Data
     public struct PlayerDamageEvent
     {
         public int Damage;
-        public Vector2 DamageDirection;
+        public Vector3 DamageDirection;
         public bool HasKnockback;
     }
 
@@ -43,7 +43,7 @@ namespace PlayerModule.Data
     public struct PlayerInputData
     {
         public bool HasMovementInput;
-        public Vector2 MovementDirection;
+        public Vector3 MovementDirection;
         public bool HasShootInput;
         public ShootInputType ShootInputType;
         public bool IsAngleTogglePressed;

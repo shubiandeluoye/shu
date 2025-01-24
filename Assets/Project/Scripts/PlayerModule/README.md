@@ -1,93 +1,436 @@
-# Player Module 文档
+# Player 模块说明文档
 
-## 1. 模块结构
+## 相关代码
+### 核心管理器
+- [PlayerSystemManager.cs](https://github.com/shubiandeluoye/shu/blob/my-new-branch/Assets/Project/Scripts/PlayerModule/PlayerSystemManager.cs) - 玩家系统总管理器
 
-### 1.1 核心类
-- `PlayerSystemManager.cs`
-  - 位置：Assets/Project/Scripts/PlayerModule/
-  - 功能：玩家系统总管理器，负责初始化和管理所有子系统
-  - 依赖：HealthSystem, MovementSystem, ShootingSystem
+### 数据相关
+- [PlayerConfig.cs](https://github.com/shubiandeluoye/shu/blob/my-new-branch/Assets/Project/Scripts/PlayerModule/Data/PlayerConfig.cs) - 玩家配置数据
+- [PlayerEvents.cs](https://github.com/shubiandeluoye/shu/blob/my-new-branch/Assets/Project/Scripts/PlayerModule/Data/PlayerEvents.cs) - 玩家相关事件
+- [PlayerState.cs](https://github.com/shubiandeluoye/shu/blob/my-new-branch/Assets/Project/Scripts/PlayerModule/Data/PlayerState.cs) - 玩家状态数据
 
-- `HealthSystem.cs`
-  - 位置：Assets/Project/Scripts/PlayerModule/Systems/
-  - 功能：生命值管理，处理伤害和治疗
-  - 依赖：HealthConfig
+### 系统相关
+- [MovementSystem.cs](https://github.com/shubiandeluoye/shu/blob/my-new-branch/Assets/Project/Scripts/PlayerModule/Systems/MovementSystem.cs) - 移动系统
+- [HealthSystem.cs](https://github.com/shubiandeluoye/shu/blob/my-new-branch/Assets/Project/Scripts/PlayerModule/Systems/HealthSystem.cs) - 生命值系统
+- [ShootingSystem.cs](https://github.com/shubiandeluoye/shu/blob/my-new-branch/Assets/Project/Scripts/PlayerModule/Systems/ShootingSystem.cs) - 射击系统
 
-- `MovementSystem.cs`
-  - 位置：Assets/Project/Scripts/PlayerModule/Systems/
-  - 功能：移动系统，处理位置和击退效果
-  - 依赖：MovementConfig
+## 配置详解
 
-- `ShootingSystem.cs`
-  - 位置：Assets/Project/Scripts/PlayerModule/Systems/
-  - 功能：射击系统，处理子弹发射和角度
-  - 依赖：ShootingConfig
+### 1. 玩家基础配置 (PlayerConfig)
+```csharp
+[CreateAssetMenu(fileName = "NewPlayerConfig", menuName = "Game/Player/New Player Config")]
+public class PlayerConfig
+{
+    public MovementConfig MovementConfig;
+    public HealthConfig HealthConfig;
+    public ShootingConfig ShootingConfig;
+}
 
-### 1.2 数据类
-- `PlayerConfig.cs`
-  - 位置：Assets/Project/Scripts/PlayerModule/Data/
-  - 功能：玩家配置数据
-  - 关键配置：
-    - MovementConfig: 移动相关配置
-    - HealthConfig: 生命值相关配置
-    - ShootingConfig: 射击相关配置
+[System.Serializable]
+public class MovementConfig
+{
+    public float MoveSpeed = 5f;        // 移动速度
+    public float KnockbackDrag = 3f;    // 击退阻力
+    public float MinX = -3.5f;          // X轴最小值
+    public float MaxX = 3.5f;           // X轴最大值
+    public float MinZ = -3.5f;          // Z轴最小值
+    public float MaxZ = 3.5f;           // Z轴最大值
+}
 
-- `PlayerEvents.cs`
-  - 位置：Assets/Project/Scripts/PlayerModule/Data/
-  - 功能：定义所有玩家相关事件
-  - 事件类型：
-    - PlayerDamageEvent: 玩家受伤
-    - PlayerStunEvent: 玩家眩晕
-    - PlayerHealthChangedEvent: 生命值变化
-    - PlayerDeathEvent: 玩家死亡
-    - PlayerHealEvent: 玩家治疗
-    - PlayerOutOfBoundsEvent: 出界事件
-    - PlayerInputData: 输入数据
+[System.Serializable]
+public class HealthConfig
+{
+    public int MaxHealth = 100;         // 最大生命值
+    public float InvincibilityTime = 0.5f; // 无敌时间
+}
 
-- `PlayerState.cs`
-  - 位置：Assets/Project/Scripts/PlayerModule/Data/
-  - 功能：玩家状态数据和枚举定义
-  - 状态数据：
-    - Health: 当前生命值
-    - Position: 当前位置
-    - ShootAngle: 射击角度
-    - IsStunned: 是否眩晕
-    - CurrentBulletType: 当前子弹类型
-  - 枚举定义：
-    - BulletType: 子弹类型
-    - ShootInputType: 射击输入类型
-    - ModifyHealthType: 生命值修改类型
-    - DeathReason: 死亡原因
+[System.Serializable]
+public class ShootingConfig
+{
+    public float[] ShootAngles = { 0f, 30f, -30f }; // 射击角度
+    public float ShootCooldown = 0.2f;  // 射击冷却
+    public float BulletSpawnOffset = 0.5f; // 子弹生成偏移
+}
+```
 
-## 2. 网络同步说明
-所有需要同步的状态都使用 [Networked] 属性标记：
-- IsInitialized: 是否初始化
-- CurrentHealth: 当前生命值
-- CurrentPosition: 当前位置
-- CurrentAngle: 当前角度
+### 2. 玩家状态 (PlayerState)
+```csharp
+public class PlayerState
+{
+    public int Health { get; set; }
+    public Vector3 Position { get; set; }
+    public float ShootAngle { get; set; }
+    public bool IsStunned { get; set; }
+    public BulletType CurrentBulletType { get; set; }
+}
+```
 
-## 3. 主要功能
-1. 生命值系统
-   - 伤害处理
-   - 治疗处理
-   - 无敌时间
-   - 死亡检测
+### 3. 玩家事件 (PlayerEvents)
+```csharp
+public struct PlayerDamageEvent
+{
+    public int Damage;
+    public Vector3 DamageDirection;
+    public bool HasKnockback;
+}
 
-2. 移动系统
-   - 8方向移动
+public struct PlayerHealEvent
+{
+    public int HealAmount;
+}
+
+public struct PlayerDeathEvent
+{
+    public Vector3 DeathPosition;
+    public int KillerId;
+}
+
+public struct PlayerInputData
+{
+    public bool HasMovementInput;
+    public Vector3 MovementDirection;
+    public bool HasShootInput;
+    public ShootInputType ShootInputType;
+    public bool IsAngleTogglePressed;
+}
+```
+
+## 系统实现详解
+
+### 1. 移动系统 (MovementSystem)
+```csharp
+public class MovementSystem
+{
+    private readonly MovementConfig config;
+    private Vector3 currentPosition;
+    private Vector3 currentVelocity;
+    private Rigidbody rb;
+
+    public void Initialize(Vector3 startPosition)
+    {
+        currentPosition = startPosition;
+        currentVelocity = Vector3.zero;
+    }
+
+    public void HandleMovement(Vector3 direction)
+    {
+        if (isStunned) return;
+
+        // 确保在XZ平面上移动
+        Vector3 flatDirection = new Vector3(direction.x, 0, direction.z).normalized;
+        currentVelocity = flatDirection * config.MoveSpeed;
+        
+        // 使用Rigidbody移动
+        if (rb != null)
+        {
+            rb.velocity = new Vector3(currentVelocity.x, rb.velocity.y, currentVelocity.z);
+        }
+    }
+
+    public void ApplyKnockback(Vector3 direction, float force)
+    {
+        if (!isStunned)
+        {
+            Vector3 knockbackDir = new Vector3(direction.x, 0, direction.z).normalized;
+            currentVelocity += knockbackDir * force;
+        }
+    }
+}
+```
+
+### 2. 生命值系统 (HealthSystem)
+```csharp
+public class HealthSystem
+{
+    private readonly HealthConfig config;
+    private int currentHealth;
+    private float invincibilityEndTime;
+
+    public void Initialize()
+    {
+        currentHealth = config.MaxHealth;
+        invincibilityEndTime = 0f;
+    }
+
+    public void TakeDamage(int damage)
+    {
+        if (Time.time < invincibilityEndTime) return;
+
+        currentHealth = Mathf.Max(0, currentHealth - damage);
+        invincibilityEndTime = Time.time + config.InvincibilityTime;
+
+        EventManager.Instance.TriggerEvent(new PlayerDamageEvent 
+        { 
+            Damage = damage 
+        });
+
+        if (currentHealth <= 0)
+        {
+            EventManager.Instance.TriggerEvent(new PlayerDeathEvent());
+        }
+    }
+
+    public void Heal(int amount)
+    {
+        int oldHealth = currentHealth;
+        currentHealth = Mathf.Min(config.MaxHealth, currentHealth + amount);
+
+        if (currentHealth > oldHealth)
+        {
+            EventManager.Instance.TriggerEvent(new PlayerHealEvent 
+            { 
+                HealAmount = currentHealth - oldHealth 
+            });
+        }
+    }
+}
+```
+
+### 3. 射击系统 (ShootingSystem)
+```csharp
+public class ShootingSystem
+{
+    private readonly ShootingConfig config;
+    private float nextShootTime;
+    private int currentAngleIndex;
+
+    public void Initialize()
+    {
+        nextShootTime = 0f;
+        currentAngleIndex = 0;
+    }
+
+    public void Shoot(Vector3 position, Vector3 direction)
+    {
+        if (Time.time < nextShootTime) return;
+
+        float currentAngle = config.ShootAngles[currentAngleIndex];
+        Vector3 rotatedDirection = Quaternion.Euler(0, currentAngle, 0) * direction;
+        
+        // 生成子弹
+        Vector3 spawnPosition = position + rotatedDirection * config.BulletSpawnOffset;
+        var bullet = BulletPool.Instance.Get();
+        bullet.transform.position = spawnPosition;
+        bullet.transform.rotation = Quaternion.LookRotation(rotatedDirection);
+        
+        nextShootTime = Time.time + config.ShootCooldown;
+    }
+
+    public void ToggleShootAngle()
+    {
+        currentAngleIndex = (currentAngleIndex + 1) % config.ShootAngles.Length;
+    }
+}
+```
+
+## 使用示例
+
+### 1. 配置玩家
+```csharp
+// 在Unity编辑器中
+[SerializeField] private PlayerConfig playerConfig;
+
+void Awake()
+{
+    // 初始化各个系统
+    movementSystem = new MovementSystem(playerConfig.MovementConfig);
+    healthSystem = new HealthSystem(playerConfig.HealthConfig);
+    shootingSystem = new ShootingSystem(playerConfig.ShootingConfig);
+
+    // 设置初始状态
+    movementSystem.Initialize(transform.position);
+    healthSystem.Initialize();
+    shootingSystem.Initialize();
+}
+```
+
+### 2. 处理输入
+```csharp
+private void OnInputAction(InputAction.CallbackContext context)
+{
+    if (!IsInitialized) return;
+
+    // 处理移动输入
+    if (context.action.name == "Move")
+    {
+        Vector2 input = context.ReadValue<Vector2>();
+        Vector3 moveDirection = new Vector3(input.x, 0, input.y);
+        HandleMovementInput(new PlayerInputData 
+        { 
+            HasMovementInput = true,
+            MovementDirection = moveDirection 
+        });
+    }
+    
+    // 处理射击输入
+    if (context.action.name == "Shoot" && context.performed)
+    {
+        HandleShootInput(new PlayerInputData
+        {
+            HasShootInput = true,
+            ShootInputType = ShootInputType.Normal
+        });
+    }
+}
+```
+
+### 3. 网络同步
+```csharp
+[ServerRpc]
+private void ServerMove(Vector3 direction)
+{
+    // 服务器端验证
+    if (!IsValidMovement(direction)) return;
+
+    // 更新位置
+    movementSystem.HandleMovement(direction);
+    
+    // 同步到所有客户端
+    ClientRpcMove(transform.position);
+}
+
+[ClientRpc]
+private void ClientRpcMove(Vector3 newPosition)
+{
+    // 客户端更新位置
+    if (!IsOwner)
+    {
+        transform.position = newPosition;
+    }
+}
+```
+
+## Unity组件要求
+
+### 1. 必需组件
+```csharp
+[RequireComponent(typeof(Rigidbody))]
+[RequireComponent(typeof(PlayerInput))]
+[RequireComponent(typeof(NetworkObject))]
+public class PlayerSystemManager : NetworkBehaviour
+{
+    private Rigidbody rb;
+    private PlayerInput playerInput;
+    
+    private void Awake()
+    {
+        rb = GetComponent<Rigidbody>();
+        playerInput = GetComponent<PlayerInput>();
+        
+        // 设置Rigidbody属性
+        rb.constraints = RigidbodyConstraints.FreezeRotationX | 
+                        RigidbodyConstraints.FreezeRotationZ;
+    }
+}
+```
+
+### 2. 可选组件
+- AudioSource (音效)
+- ParticleSystem (特效)
+- Animator (动画)
+
+## 禁止修改项
+1. 核心系统架构
+   - PlayerSystemManager的基础结构
+   - 系统初始化流程
+   - 网络同步基础逻辑
+
+2. 事件系统
+   - 事件定义
+   - 事件触发机制
+   - 事件处理流程
+
+3. 输入系统
+   - Input System的基础配置
+   - 输入事件的处理流程
+   - 输入数据结构
+
+4. 物理系统
+   - Rigidbody的基础设置
+   - 碰撞检测机制
+   - 物理更新频率
+
+## 可以修改项
+1. 玩家配置
+   - 移动参数
+   - 生命值设置
+   - 射击配置
+   - 边界范围
+
+2. 表现效果
+   - 动画系统
+   - 特效系统
+   - 音效系统
+   - UI反馈
+
+3. 游戏玩法
+   - 技能组合
+   - 伤害计算
    - 击退效果
-   - 眩晕处理
-   - 边界检查
+   - 特殊状态
 
-3. 射击系统
-   - 多角度射击
-   - 子弹类型切换
-   - 射击冷却
-   - 子弹生成
+4. 扩展功能
+   - 新的移动方式
+   - 额外的状态效果
+   - 自定义事件
+   - 特殊技能
 
-## 4. 注意事项
-1. 所有状态更新需要检查 StateAuthority
-2. 输入处理需要确保玩家已初始化
-3. 配置值需要在合理范围内
-4. 事件系统用于处理玩家状态变化通知
-5. 移动和射击需要考虑网络延迟 
+## 常见问题解决
+
+### 1. 移动问题
+- 症状：玩家无法移动
+- 解决方案：
+  1. 检查 Rigidbody 设置
+  2. 确认 Input System 配置
+  3. 验证移动边界设置
+  4. 检查是否被击晕
+
+### 2. 伤害计算
+- 症状：伤害不正确
+- 解决方案：
+  1. 检查无敌时间
+  2. 确认伤害计算公式
+  3. 验证网络权限
+  4. 检查碰撞器设置
+
+### 3. 射击问题
+- 症状：无法射击
+- 解决方案：
+  1. 检查冷却时间
+  2. 确认子弹预制体
+  3. 验证射击角度
+  4. 检查对象池设置
+
+### 4. 网络同步
+- 症状：位置不同步
+- 解决方案：
+  1. 检查 NetworkObject
+  2. 确认 RPC 调用
+  3. 验证权限设置
+  4. 检查网络状态
+
+## 性能优化建议
+
+### 1. 物理系统
+- 使用 FixedUpdate 处理物理
+- 适当设置 Rigidbody 约束
+- 优化碰撞器形状
+- 使用物理材质
+
+### 2. 输入处理
+- 使用 Input System 的事件模式
+- 批量处理输入
+- 减少每帧检查
+- 使用输入缓冲
+
+### 3. 特效系统
+- 使用对象池
+- 优化粒子系统
+- 使用GPU Instancing
+- 控制特效数量
+
+### 4. 网络同步
+- 使用预测
+- 实现平滑插值
+- 优化同步频率
+- 压缩同步数据 

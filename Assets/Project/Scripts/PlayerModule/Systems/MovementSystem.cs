@@ -17,10 +17,11 @@ namespace PlayerModule
     public class MovementSystem
     {
         private readonly MovementConfig config;
-        private Vector2 currentPosition;
-        private Vector2 currentVelocity;
+        private Vector3 currentPosition;
+        private Vector3 currentVelocity;
         private float stunEndTime;
         private bool isStunned;
+        private Rigidbody rb;
 
         public bool IsStunned => isStunned;
 
@@ -29,29 +30,26 @@ namespace PlayerModule
             this.config = config;
         }
 
-        public void Initialize(Vector2 startPosition)
+        public void Initialize(Vector3 startPosition)
         {
             currentPosition = startPosition;
-            currentVelocity = Vector2.zero;
+            currentVelocity = Vector3.zero;
             isStunned = false;
             stunEndTime = 0f;
         }
 
-        public void HandleMovement(Vector2 direction)
+        public void HandleMovement(Vector3 direction)
         {
             if (isStunned) return;
 
-            // 标准化8方向输入
-            Vector2 normalizedDir = NormalizeToEightDirections(direction);
+            // 确保在XZ平面上移动
+            Vector3 flatDirection = new Vector3(direction.x, 0, direction.z).normalized;
+            currentVelocity = flatDirection * config.MoveSpeed;
             
-            // 计算移动
-            currentVelocity = normalizedDir * config.MoveSpeed;
-            Vector2 newPosition = currentPosition + currentVelocity * Time.deltaTime;
-
-            // 检查边界
-            if (IsWithinBounds(newPosition))
+            // 使用Rigidbody移动
+            if (rb != null)
             {
-                currentPosition = newPosition;
+                rb.velocity = new Vector3(currentVelocity.x, rb.velocity.y, currentVelocity.z);
             }
         }
 
@@ -69,11 +67,13 @@ namespace PlayerModule
             stunEndTime = Time.time + duration;
         }
 
-        public void ApplyKnockback(Vector2 direction, float force)
+        public void ApplyKnockback(Vector3 direction, float force)
         {
             if (!isStunned)
             {
-                currentVelocity += direction.normalized * force;
+                // 确保在XZ平面上击退
+                Vector3 knockbackDir = new Vector3(direction.x, 0, direction.z).normalized;
+                currentVelocity += knockbackDir * force;
             }
         }
 
@@ -88,13 +88,13 @@ namespace PlayerModule
             // 应用击退减速
             if (currentVelocity.magnitude > 0.1f)
             {
-                currentVelocity = Vector2.Lerp(currentVelocity, Vector2.zero, config.KnockbackDrag * Time.deltaTime);
+                currentVelocity = Vector3.Lerp(currentVelocity, Vector3.zero, config.KnockbackDrag * Time.deltaTime);
             }
 
             // 更新位置
             if (currentVelocity.magnitude > 0)
             {
-                Vector2 newPosition = currentPosition + currentVelocity * Time.deltaTime;
+                Vector3 newPosition = currentPosition + currentVelocity * Time.deltaTime;
                 if (IsWithinBounds(newPosition))
                 {
                     currentPosition = newPosition;
@@ -107,23 +107,24 @@ namespace PlayerModule
                         EventManager.Instance.TriggerEvent(new PlayerOutOfBoundsEvent());
                     }
                     // 停止移动
-                    currentVelocity = Vector2.zero;
+                    currentVelocity = Vector3.zero;
                 }
             }
         }
 
-        private bool IsWithinBounds(Vector2 position)
+        private bool IsWithinBounds(Vector3 position)
         {
+            // 使用XZ平面检查边界
             return position.x >= config.Bounds.xMin && position.x <= config.Bounds.xMax &&
-                   position.y >= config.Bounds.yMin && position.y <= config.Bounds.yMax;
+                   position.z >= config.Bounds.yMin && position.z <= config.Bounds.yMax;
         }
 
-        private bool IsOutOfBounds(Vector2 position)
+        private bool IsOutOfBounds(Vector3 position)
         {
             return position.y < -50f; // 掉落高度检测
         }
 
-        public Vector2 GetPosition() => currentPosition;
-        public Vector2 GetVelocity() => currentVelocity;
+        public Vector3 GetPosition() => currentPosition;
+        public Vector3 GetVelocity() => currentVelocity;
     }
 } 
