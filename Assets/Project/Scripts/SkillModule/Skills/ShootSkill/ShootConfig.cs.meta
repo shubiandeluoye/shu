@@ -3,7 +3,18 @@ guid: 995aceee4e2111d43be18e7c585623b9
 MonoImporter:
   externalObjects: {}
   serializedVersion: 2
-  defaultReferences: []
+  defaultReferences:
+  - SkillPrefab: {instanceID: 0}
+  - EffectPrefab: {instanceID: 0}
+  - SkillIcon: {instanceID: 0}
+  - SkillSound: {instanceID: 0}
+  - bulletPrefabA: {fileID: 8052122048575809553, guid: c8ba5f6e4432fb54c86fe345d1208b3d,
+      type: 3}
+  - bulletPrefabB: {fileID: 9052122048575809553, guid: bdfddfd0af58c1b4f9e284c976047708,
+      type: 3}
+  - ShootEffectPrefab: {instanceID: 0}
+  - ShootSound: {instanceID: 0}
+  - BulletImpactSound: {instanceID: 0}
   executionOrder: 0
   icon: {instanceID: 0}
   userData: 

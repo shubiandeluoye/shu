@@ -1,34 +1,51 @@
-using UnityEngine;
-
 namespace SkillModule.Utils
 {
     public static class SkillUtils
     {
-        public static Sprite CreateDefaultSprite()
+        /// <summary>
+        /// 获取当前时间（秒）
+        /// </summary>
+        public static float GetCurrentTime()
         {
-            var texture = new Texture2D(32, 32);
-            var pixels = new Color[32 * 32];
-            for (int i = 0; i < pixels.Length; i++)
-            {
-                pixels[i] = Color.white;
-            }
-            texture.SetPixels(pixels);
-            texture.Apply();
-            return Sprite.Create(texture, new Rect(0, 0, 32, 32), new Vector2(0.5f, 0.5f));
+            return System.DateTime.Now.Ticks / 10000000f;
         }
 
-        public static void SafeDestroy(GameObject obj)
+        /// <summary>
+        /// 计算两点之间的距离
+        /// </summary>
+        public static float CalculateDistance(Vector3 a, Vector3 b)
         {
-            if (obj != null)
-            {
-                GameObject.Destroy(obj);
-            }
+            float dx = a.x - b.x;
+            float dy = a.y - b.y;
+            float dz = a.z - b.z;
+            return System.MathF.Sqrt(dx * dx + dy * dy + dz * dz);
         }
 
-        public static T SafeGetComponent<T>(GameObject obj) where T : Component
+        /// <summary>
+        /// 规范化角度到 0-360 度
+        /// </summary>
+        public static float NormalizeAngle(float angle)
         {
-            if (obj == null) return null;
-            return obj.GetComponent<T>();
+            while (angle < 0) angle += 360;
+            while (angle >= 360) angle -= 360;
+            return angle;
+        }
+
+        /// <summary>
+        /// 检查值是否在范围内
+        /// </summary>
+        public static bool IsInRange(float value, float min, float max)
+        {
+            return value >= min && value <= max;
+        }
+
+        /// <summary>
+        /// 生成唯一ID
+        /// </summary>
+        private static int idCounter = 0;
+        public static int GenerateUniqueId()
+        {
+            return System.Threading.Interlocked.Increment(ref idCounter);
         }
     }
 } 

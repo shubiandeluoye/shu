@@ -95,47 +95,4 @@ namespace Core.EventSystem
         public float Radius { get; set; }
         public bool IsActive { get; set; }
     }
-
-    public enum GameEvents
-    {
-        // 系统事件
-        None = 0,
-        SystemInitialize = 1,
-        SystemReady = 2,
-        SystemError = 3,
-        
-        // 状态事件
-        StateChanged = 10,
-        StateEnter = 11,
-        StateExit = 12,
-        StatePaused = 13,
-        StateResumed = 14,
-        
-        // 对象池事件
-        PoolCreated = 20,
-        PoolDestroyed = 21,
-        ObjectSpawned = 22,
-        ObjectRecycled = 23,
-        PoolCleared = 24,
-        
-        // 技能系统事件
-        SkillStarted = 30,
-        SkillEnded = 31,
-        SkillCancelled = 32,
-        SkillCooldownStart = 33,
-        SkillCooldownEnd = 34,
-        
-        // 资源事件
-        ResourceLoaded = 40,
-        ResourceUnloaded = 41,
-        ResourceError = 42,
-        
-        // 网络事件
-        NetworkConnected = 50,
-        NetworkDisconnected = 51,
-        NetworkError = 52,
-        
-        // 自定义事件起始值
-        Custom = 1000
-    }
 } 

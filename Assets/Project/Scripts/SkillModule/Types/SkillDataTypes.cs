@@ -3,14 +3,26 @@ using UnityEngine;
 namespace SkillModule.Types
 {
     /// <summary>
+    /// 技能类型枚举
+    /// </summary>
+    public enum SkillType
+    {
+        None = 0,
+        Active,     // 主动技能
+        Passive,    // 被动技能
+        Buff,       // 增益效果
+        Debuff      // 减益效果
+    }
+
+    /// <summary>
     /// 技能状态枚举
     /// </summary>
     public enum SkillState
     {
-        Ready,      // 准备就绪
-        Active,     // 技能激活中
+        Ready,      // 就绪
+        Casting,    // 施法中
         Cooldown,   // 冷却中
-        Disabled    // 禁用状态
+        Disabled    // 禁用
     }
 
     /// <summary>
@@ -65,17 +77,15 @@ namespace SkillModule.Types
     /// <summary>
     /// 基础技能数据
     /// </summary>
-    [System.Serializable]
     public class SkillData
     {
-        public int SkillId;
-        public string SkillName;
-        public string Description;
-        public SkillType Type;
-        public float Cooldown;
-        public float Duration;
-        public bool CanCancel;
-        public GameObject SkillPrefab;
+        public int SkillId { get; set; }
+        public string SkillName { get; set; }
+        public string Description { get; set; }
+        public SkillType Type { get; set; }
+        public float Cooldown { get; set; }
+        public float Duration { get; set; }
+        public bool CanCancel { get; set; }
     }
 
     /// <summary>
@@ -93,5 +103,15 @@ namespace SkillModule.Types
         {
             Type = SkillType.Heal;
         }
+    }
+
+    /// <summary>
+    /// 技能事件数据
+    /// </summary>
+    public struct SkillEventData
+    {
+        public int SkillId { get; set; }
+        public SkillState State { get; set; }
+        public float TimeStamp { get; set; }
     }
 } 

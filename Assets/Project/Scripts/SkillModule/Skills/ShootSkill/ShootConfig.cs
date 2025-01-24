@@ -15,38 +15,54 @@ namespace SkillModule.Skills
     [CreateAssetMenu(fileName = "New Shoot Skill", menuName = "Skills/Shoot Skill")]
     public class ShootConfig : SkillConfig
     {
-        [Header("子弹配置")]
-        public float BulletSpeed = 10f;
-        public float BulletDamage = 10f;
-        public float BulletLifetime = 3f;
-        public float BulletRadius = 0.2f;
-        public Color BulletColor = Color.red;
+        [Header("子弹预制体")]
+        public GameObject BulletPrefab;    // 只需要一个子弹预制体
+        
+        [Header("射击配置")]
+        public float BulletSpeed { get; set; } = 12f;
+        public float BulletDamage { get; set; } = 10f;
+        
+        [Header("射击角度")]
+        public float[] ShootAngles { get; set; } = new float[] { 0 };
 
-        [Header("发射配置")]
-        public float[] ShootAngles = new float[] { 0 };  // 发射角度数组
-        public int BulletsPerShot = 1;                   // 每次发射的子弹数量
-        public float SpreadAngle = 0f;                   // 散射角度
-        public bool UseRandomSpread = false;             // 是否使用随机散射
+        [Header("子弹属性")]
+        public float BulletLifetime { get; set; } = 3f;
+        public float BulletRadius { get; set; } = 0.2f;
+        public Color BulletColor = Color.red;
+        public Color ShootEffectColor = Color.yellow;
 
         [Header("特效配置")]
         public GameObject ShootEffectPrefab;             // 发射特效
-        public Color ShootEffectColor = Color.yellow;
-        public float ShootEffectDuration = 0.2f;
+        public float ShootEffectDuration = 0.5f;         // 发射特效持续时间
+        public AudioClip ShootSound;                     // 发射音效
+        public AudioClip BulletImpactSound;              // 子弹击中音效
 
-        [Header("音效配置")]
-        public AudioClip ShootSound;          // 添加射击音效
-        public AudioClip BulletImpactSound;   // 添加子弹碰撞音效
+        [Header("射击模式")]
+        public ShootPattern Pattern { get; set; } = ShootPattern.Straight;
 
         public ShootConfig()
         {
-            Type = SkillType.Shoot;  // 现在可以使用 SkillType
+            Type = SkillType.Shoot;
+        }
+
+        public override bool IsValid()
+        {
+            if (!base.IsValid()) return false;
+
+            // 验证子弹配置
+            if (BulletSpeed <= 0) return false;
+            if (BulletDamage < 0) return false;
+            if (BulletLifetime <= 0) return false;
+            if (BulletRadius <= 0) return false;
+
+            return true;
         }
 
         protected override void ValidateSkillType()
         {
             if (Type != SkillType.Shoot)
             {
-                Debug.LogWarning($"[ShootConfig] {SkillName} 的技能类型必须是 Shoot");
+                Debug.LogError($"[ShootConfig] {SkillName} 的技能类型错误: {Type}，已自动修正为 Shoot");
                 Type = SkillType.Shoot;
             }
         }
@@ -54,6 +70,12 @@ namespace SkillModule.Skills
         protected override void OnValidate()
         {
             base.OnValidate();
+            Debug.Log($"[ShootConfig] 正在验证技能配置: {SkillName}");
+
+            if (BulletPrefab == null)
+            {
+                Debug.LogError($"[ShootConfig] {SkillName} 缺少子弹预制体!");
+            }
 
             // 验证子弹配置
             if (BulletSpeed <= 0)
@@ -80,18 +102,20 @@ namespace SkillModule.Skills
                 Debug.LogWarning($"[ShootConfig] {SkillName} 的子弹半径必须大于0");
             }
 
-            // 验证发射配置
-            if (BulletsPerShot <= 0)
-            {
-                BulletsPerShot = 1;
-                Debug.LogWarning($"[ShootConfig] {SkillName} 的每次发射子弹数量必须大于0");
-            }
-
-            if (SpreadAngle < 0)
-            {
-                SpreadAngle = 0;
-                Debug.LogWarning($"[ShootConfig] {SkillName} 的散射角度不能为负数");
-            }
+            Debug.Log($"[ShootConfig] {SkillName} 配置验证完成");
         }
+    }
+
+    public enum BulletType
+    {
+        Normal,
+        Special
+    }
+
+    public enum ShootPattern
+    {
+        Straight,
+        Spread30,
+        Spread45
     }
 } 

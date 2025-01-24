@@ -1,57 +1,64 @@
 using UnityEngine;
 using SkillModule.Core;
 using SkillModule.Types;
+using System;
+using System.Collections.Generic;
 
 namespace SkillModule.Events
 {
     /// <summary>
     /// 技能开始事件
     /// </summary>
-    public struct SkillStartEvent
+    public class SkillStartEvent
     {
-        public int SkillId;
-        public Vector3 Position;
-        public Vector3 Direction;
+        public int SkillId { get; set; }
+        public Vector3 Position { get; set; }
+        public Vector3 Direction { get; set; }
+        public object Caster { get; set; }
+        public float StartTime { get; set; }
     }
 
     /// <summary>
     /// 技能结束事件
     /// </summary>
-    public struct SkillEndEvent
+    public class SkillEndEvent
     {
-        public int SkillId;
-        public bool WasSuccessful;
-        public string FailReason;
+        public int SkillId { get; set; }
+        public bool WasSuccessful { get; set; }
+        public string EndReason { get; set; }
+        public float Duration { get; set; }
     }
 
     /// <summary>
     /// 技能冷却事件
     /// </summary>
-    public struct SkillCooldownEvent
+    public class SkillCooldownEvent
     {
-        public int SkillId;
-        public float CooldownTime;
-        
+        public int SkillId { get; set; }
+        public float CooldownDuration { get; set; }
+        public float RemainingCooldown { get; set; }
+        public bool IsReady { get; set; }
     }
 
     /// <summary>
     /// 技能打断事件
     /// </summary>
-    public struct SkillInterruptEvent
+    public class SkillInterruptEvent
     {
-        public int SkillId;
-        public string Reason;
-        public GameObject Source;
+        public int SkillId { get; set; }
+        public string InterruptReason { get; set; }
+        public GameObject Interrupter { get; set; }
     }
 
     /// <summary>
     /// 技能状态变更事件
     /// </summary>
-    public struct SkillStateChangeEvent
+    public class SkillStateChangeEvent
     {
-        public int SkillId;
-        public SkillState State;
-        public string Reason;
+        public int SkillId { get; set; }
+        public SkillState OldState { get; set; }
+        public SkillState NewState { get; set; }
+        public float StateChangeTime { get; set; }
     }
 
     /// <summary>
@@ -64,15 +71,6 @@ namespace SkillModule.Events
         public SkillEffectType Type;
         public GameObject Target;
         public float[] Parameters;
-    }
-
-    public struct DamageEvent
-    {
-        public GameObject Source;
-        public GameObject Target;
-        public float Damage;
-        public Vector3 Direction;
-        public Vector3 Position;
     }
 
     public struct HealEvent
@@ -97,11 +95,11 @@ namespace SkillModule.Events
     /// </summary>
     public struct BulletData
     {
-        public int SkillId;           // 关联的技能ID
-        public float Damage;          // 伤害值
-        public float Speed;           // 速度
-        public Vector3 Direction;     // 方向
-        public GameObject Source;     // 发射源
+        public int SkillId;           
+        public float Damage;          
+        public float Speed;           
+        public Vector3 Direction;     
+        public GameObject Source;     
     }
 
     /// <summary>
@@ -109,7 +107,55 @@ namespace SkillModule.Events
     /// </summary>
     public struct BulletTypeSwitchEvent
     {
-        public int SkillId;           // 新的技能ID
-        public BulletData BulletData; // 子弹数据
+        public int SkillId;           
+        public BulletData BulletData; 
+    }
+
+    public class SkillEventSystem
+    {
+        private static SkillEventSystem instance;
+        public static SkillEventSystem Instance => instance ??= new SkillEventSystem();
+
+        private Dictionary<string, List<Action<object>>> eventHandlers = new Dictionary<string, List<Action<object>>>();
+
+        public void Subscribe(string eventName, Action<object> handler)
+        {
+            if (!eventHandlers.ContainsKey(eventName))
+            {
+                eventHandlers[eventName] = new List<Action<object>>();
+            }
+            eventHandlers[eventName].Add(handler);
+        }
+
+        public void Unsubscribe(string eventName, Action<object> handler)
+        {
+            if (eventHandlers.ContainsKey(eventName))
+            {
+                eventHandlers[eventName].Remove(handler);
+            }
+        }
+
+        public void Publish(string eventName, object eventData)
+        {
+            if (eventHandlers.ContainsKey(eventName))
+            {
+                foreach (var handler in eventHandlers[eventName])
+                {
+                    handler.Invoke(eventData);
+                }
+            }
+        }
+
+        // 预定义的事件名称
+        public static class EventNames
+        {
+            public const string SkillStart = "SkillStart";
+            public const string SkillEnd = "SkillEnd";
+            public const string SkillCooldown = "SkillCooldown";
+            public const string SkillStateChange = "SkillStateChange";
+            public const string EffectCreated = "EffectCreated";
+            public const string EffectRemoved = "EffectRemoved";
+            public const string EffectStateChanged = "EffectStateChanged";
+        }
     }
 } 

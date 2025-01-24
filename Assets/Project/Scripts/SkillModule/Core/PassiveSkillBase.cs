@@ -1,7 +1,4 @@
-using UnityEngine;
-using Core.EventSystem;
 using SkillModule.Types;
-using SkillModule.Effects;
 using SkillModule.Events;
 
 namespace SkillModule.Core
@@ -12,86 +9,79 @@ namespace SkillModule.Core
     /// 1. 技能基础属性
     /// 2. 触发条件判断
     /// 3. 冷却管理
-    /// 4. 效果创建
     /// </summary>
-    public abstract class PassiveSkillBase : ScriptableObject
+    public abstract class PassiveSkillBase
     {
-        [Header("基础配置")]
-        public int SkillId;
-        public string SkillName;
-        public string Description;
-        public TriggerType TriggerType;
-        public float Cooldown;
-
-        [Header("触发条件")]
-        public float[] TriggerParameters;  // 触发参数（如：血量阈值、伤害阈值等）
-        public bool RequireTarget;         // 是否需要目标
-        public LayerMask TargetMask;      // 目标层级过滤
-
-        protected EventManager eventManager;
+        protected SkillData skillData;
         protected float lastTriggerTime;
         protected bool isEnabled = true;
+        protected SkillEventSystem eventSystem => SkillEventSystem.Instance;
+
+        public int SkillId => skillData.SkillId;
+        public string SkillName => skillData.SkillName;
+        public float Cooldown => skillData.Cooldown;
+
+        protected PassiveSkillBase(SkillData data)
+        {
+            skillData = data;
+            lastTriggerTime = -Cooldown;
+            Initialize();
+        }
 
         public virtual void Initialize()
         {
-            eventManager = EventManager.Instance;
-            lastTriggerTime = -Cooldown;
             RegisterEvents();
         }
 
         protected virtual void RegisterEvents()
         {
-            eventManager.AddListener<SkillTriggerData>(OnSkillTrigger);
+            // 子类实现具体的事件注册
         }
 
         protected virtual void UnregisterEvents()
         {
-            eventManager.RemoveListener<SkillTriggerData>(OnSkillTrigger);
+            // 子类实现具体的事件注销
         }
 
-        protected virtual void OnSkillTrigger(SkillTriggerData data)
-        {
-            if (!CanTrigger(data)) return;
-            
-            ExecuteSkill(data);
-            lastTriggerTime = Time.time;
-            
-            // 触发技能事件
-            eventManager.TriggerEvent(new SkillStartEvent 
-            { 
-                SkillId = SkillId,
-                Position = data.Position,
-                Direction = data.Direction
-            });
-        }
-
-        protected virtual bool CanTrigger(SkillTriggerData data)
+        protected virtual bool CanTrigger(SkillContext context)
         {
             if (!isEnabled) return false;
-            if (data.TriggerType != TriggerType) return false;
-            if (Time.time - lastTriggerTime < Cooldown) return false;
-            if (RequireTarget && data.Target == null) return false;
-            if (RequireTarget && !IsValidTarget(data.Target)) return false;
+            if (GetCurrentTime() - lastTriggerTime < Cooldown) return false;
             
-            return ValidateParameters(data);
+            return ValidateParameters(context);
         }
 
-        protected virtual bool ValidateParameters(SkillTriggerData data)
+        protected virtual bool ValidateParameters(SkillContext context)
         {
             // 子类重写以实现具体的参数验证
             return true;
         }
 
-        protected virtual bool IsValidTarget(GameObject target)
-        {
-            return ((1 << target.layer) & TargetMask) != 0;
-        }
-
-        protected abstract void ExecuteSkill(SkillTriggerData data);
+        protected abstract void ExecuteSkill(SkillContext context);
 
         public virtual void Enable() => isEnabled = true;
         public virtual void Disable() => isEnabled = false;
-        public virtual bool IsReady() => Time.time - lastTriggerTime >= Cooldown;
-        public virtual float GetCooldownProgress() => Mathf.Clamp01((Time.time - lastTriggerTime) / Cooldown);
+        public virtual bool IsReady() => GetCurrentTime() - lastTriggerTime >= Cooldown;
+        
+        protected virtual float GetCurrentTime()
+        {
+            return System.DateTime.Now.Ticks / 10000000f; // 转换为秒
+        }
+
+        public virtual void Trigger(SkillContext context)
+        {
+            if (!CanTrigger(context)) return;
+
+            ExecuteSkill(context);
+            lastTriggerTime = GetCurrentTime();
+
+            // 触发技能事件
+            eventSystem.Publish(SkillEventSystem.EventNames.SkillStart, new SkillEventData 
+            { 
+                SkillId = SkillId,
+                State = SkillState.Casting,
+                TimeStamp = lastTriggerTime
+            });
+        }
     }
 } 

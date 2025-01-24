@@ -1,40 +1,28 @@
-using UnityEngine;
 using System.Collections.Generic;
 using SkillModule.Types;
-using Core.EventSystem;
 using SkillModule.Events;
 
 namespace SkillModule.Core
 {
-    public class SkillManager : MonoBehaviour
+    public class SkillManager
     {
+        private static SkillManager instance;
+        public static SkillManager Instance => instance ??= new SkillManager();
+
+        private Dictionary<int, BaseSkill> skills = new Dictionary<int, BaseSkill>();
         private Dictionary<int, SkillConfig> skillConfigs = new Dictionary<int, SkillConfig>();
-        private Dictionary<int, float> skillCooldowns = new Dictionary<int, float>();
+        private SkillEventSystem eventSystem => SkillEventSystem.Instance;
 
-        public bool UseSkill(int skillId, Vector3 position, Vector3 direction)
+        private SkillManager()
         {
-            if (skillConfigs.TryGetValue(skillId, out var config))
-            {
-                // 检查冷却
-                if (IsSkillOnCooldown(skillId))
-                {
-                    return false;
-                }
+            Initialize();
+        }
 
-                // 开始冷却
-                StartCooldown(skillId, config.Cooldown);
-
-                // 触发技能事件
-                EventManager.Instance.TriggerEvent(new SkillStartEvent
-                {
-                    SkillId = skillId,
-                    Position = position,
-                    Direction = direction
-                });
-
-                return true;
-            }
-            return false;
+        private void Initialize()
+        {
+            eventSystem.Subscribe(SkillEventSystem.EventNames.SkillStart, OnSkillStart);
+            eventSystem.Subscribe(SkillEventSystem.EventNames.SkillEnd, OnSkillEnd);
+            eventSystem.Subscribe(SkillEventSystem.EventNames.SkillCooldown, OnSkillCooldown);
         }
 
         public void RegisterSkill(SkillConfig config)
@@ -45,42 +33,78 @@ namespace SkillModule.Core
             }
         }
 
+        public void CreateSkill(int skillId, object owner)
+        {
+            if (skillConfigs.TryGetValue(skillId, out var config))
+            {
+                var skill = CreateSkillInstance(config);
+                if (skill != null)
+                {
+                    skills[skillId] = skill;
+                }
+            }
+        }
+
+        private BaseSkill CreateSkillInstance(SkillConfig config)
+        {
+            // 根据配置创建对应类型的技能实例
+            // 这里需要实现具体的技能创建逻辑
+            return null;
+        }
+
+        public bool UseSkill(int skillId, SkillContext context)
+        {
+            if (skills.TryGetValue(skillId, out var skill))
+            {
+                return skill.Execute(context.Position, context.Direction);
+            }
+            return false;
+        }
+
         public SkillConfig GetSkillConfig(int skillId)
         {
             skillConfigs.TryGetValue(skillId, out var config);
             return config;
         }
 
-        private bool IsSkillOnCooldown(int skillId)
+        private void OnSkillStart(object eventData)
         {
-            if (skillCooldowns.TryGetValue(skillId, out float cooldownEndTime))
+            if (eventData is SkillEventData data)
             {
-                return Time.time < cooldownEndTime;
-            }
-            return false;
-        }
-
-        private void StartCooldown(int skillId, float duration)
-        {
-            skillCooldowns[skillId] = Time.time + duration;
-        }
-
-        private void Update()
-        {
-            // 更新冷却时间
-            foreach (var skillId in new List<int>(skillCooldowns.Keys))
-            {
-                if (Time.time >= skillCooldowns[skillId])
-                {
-                    skillCooldowns.Remove(skillId);
-                    // 触发冷却结束事件
-                    EventManager.Instance.TriggerEvent(new SkillCooldownEvent
-                    {
-                        SkillId = skillId,
-                        CooldownTime = 0
-                    });
-                }
+                // 处理技能开始事件
             }
         }
+
+        private void OnSkillEnd(object eventData)
+        {
+            if (eventData is SkillEventData data)
+            {
+                // 处理技能结束事件
+            }
+        }
+
+        private void OnSkillCooldown(object eventData)
+        {
+            if (eventData is SkillEventData data)
+            {
+                // 处理技能冷却事件
+            }
+        }
+    }
+
+    public struct Vector3
+    {
+        public float x;
+        public float y;
+        public float z;
+
+        public Vector3(float x, float y, float z)
+        {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+        }
+
+        public static Vector3 zero => new Vector3(0, 0, 0);
     }
 } 

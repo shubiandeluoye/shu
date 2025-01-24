@@ -1,9 +1,5 @@
-using UnityEngine;
-using Core.EventSystem;
-using SkillModule.Utils;
 using SkillModule.Core;
 using SkillModule.Events;
-using SkillModule.Effects;
 
 namespace SkillModule.Skills
 {
@@ -17,169 +13,48 @@ namespace SkillModule.Skills
     public class HealSkill : BaseSkill
     {
         private HealConfig healConfig;
-        private GameObject owner;
 
-        public HealSkill(HealConfig config, GameObject owner) : base(config)
+        public HealSkill(HealConfig config) : base(config)
         {
             healConfig = config;
-            this.owner = owner;
         }
 
-        public override bool Execute(Vector3 position, Vector3 direction)
+        protected override void OnSkillStart()
         {
-            if (!isReady) return false;
-
-            bool success = false;
-
-            // 处理范围治疗
-            if (healConfig.HealRadius > 0)
+            // 发布治疗事件
+            eventSystem.Publish("HealApplied", new HealSkillData
             {
-                success = ExecuteAreaHeal(position);
-            }
-            else
-            {
-                success = ExecuteSingleHeal(position);
-            }
-
-            // 播放音效
-            SkillAudioUtils.PlaySkillSound(
-                success ? healConfig.HealSound : healConfig.FailSound,
-                position,
-                healConfig.SoundVolume
-            );
-
-            // 生成治疗特效
-            if (success && healConfig.UseParticles)
-            {
-                SpawnHealEffect(position);
-            }
-
-            // 触发技能事件
-            TriggerSkillStartEvent(position, direction);
-
-            // 开始冷却
-            StartCooldown();
-
-            return success;
-        }
-
-        private bool ExecuteAreaHeal(Vector3 position)
-        {
-            bool anyTargetHealed = false;
-            var colliders = Physics2D.OverlapCircleAll(position, healConfig.HealRadius, healConfig.TargetLayers);
-            
-            foreach (var collider in colliders)
-            {
-                if (ApplyHeal(collider.gameObject))
-                {
-                    anyTargetHealed = true;
-                    
-                    // 为每个治疗目标生成特效
-                    if (healConfig.UseParticles)
-                    {
-                        SpawnHealEffect(collider.transform.position);
-                    }
-                }
-            }
-
-            return anyTargetHealed;
-        }
-
-        private bool ExecuteSingleHeal(Vector3 position)
-        {
-            var hit = Physics2D.Raycast(position, Vector2.zero, 0f, healConfig.TargetLayers);
-            if (hit.collider != null)
-            {
-                return ApplyHeal(hit.collider.gameObject);
-            }
-            return false;
-        }
-
-        private bool ApplyHeal(GameObject target)
-        {
-            // 发送治疗事件
-            eventManager.TriggerEvent(new HealEvent
-            {
-                Source = owner,
-                Target = target,
-                Amount = healConfig.HealAmount,
-                IsPercentage = healConfig.IsPercentage,
-                CanOverheal = healConfig.CanOverheal
-            });
-
-            // 应用Buff效果
-            if (healConfig.ApplyBuff)
-            {
-                ApplyHealBuff(target);
-            }
-
-            return true;
-        }
-
-        private void ApplyHealBuff(GameObject target)
-        {
-            if (healConfig.BuffEffectPrefab != null)
-            {
-                var buffEffect = SkillEffectUtils.SpawnEffect(
-                    healConfig.BuffEffectPrefab,
-                    target.transform.position,
-                    healConfig.BuffDuration
-                );
-                
-                if (buffEffect != null)
-                {
-                    buffEffect.transform.SetParent(target.transform);
-                    SkillEffectUtils.SetEffectColor(buffEffect, healConfig.HealColor);
-                }
-            }
-
-            // 创建治疗效果
-            var healEffect = new HealEffect(
-                healConfig.BuffEffectPrefab,
-                target.transform.position,
-                healConfig.HealAmount,
-                healConfig.BuffDuration
-            );
-
-            // 初始化效果配置
-            healEffect.Initialize(new HealEffectConfig
-            {
-                Color = healConfig.HealColor,
-                Scale = healConfig.EffectScale,
-                Duration = healConfig.BuffDuration
-            });
-
-            // 通过事件系统应用效果
-            eventManager.TriggerEvent(new EffectEvent
-            {
-                Target = target,
-                EffectId = healConfig.SkillId,
-                Duration = healConfig.BuffDuration,
-                Strength = healConfig.BuffStrength
+                SkillId = SkillId,
+                Position = skillContext.Position,
+                HealAmount = healConfig.HealAmount,
+                HealRadius = healConfig.HealRadius,
+                IsOverTime = healConfig.IsOverTime,
+                Duration = healConfig.Duration,
+                BuffStrength = healConfig.BuffStrength,
+                Source = skillContext.Source,
+                Target = skillContext.Target
             });
         }
+    }
 
-        private void SpawnHealEffect(Vector3 position)
-        {
-            // 创建粒子效果
-            var effect = new GameObject("HealEffect");
-            effect.transform.position = position;
+    public class HealConfig : SkillConfig
+    {
+        public float HealAmount { get; set; }
+        public float HealRadius { get; set; }
+        public bool IsOverTime { get; set; }
+        public float BuffStrength { get; set; }
+    }
 
-            var particleSystem = effect.AddComponent<ParticleSystem>();
-            var main = particleSystem.main;
-            main.startColor = healConfig.HealColor;
-            main.startSize = healConfig.EffectScale;
-            main.startLifetime = healConfig.ParticleLifetime;
-            main.maxParticles = healConfig.ParticleCount;
-
-            var emission = particleSystem.emission;
-            emission.rateOverTime = healConfig.ParticleCount / healConfig.ParticleLifetime;
-
-            var velocityOverLifetime = particleSystem.velocityOverLifetime;
-            velocityOverLifetime.radial = healConfig.ParticleSpeed;
-
-            // 自动销毁
-            GameObject.Destroy(effect, healConfig.ParticleLifetime);
-        }
+    public struct HealSkillData
+    {
+        public int SkillId { get; set; }
+        public Vector3 Position { get; set; }
+        public float HealAmount { get; set; }
+        public float HealRadius { get; set; }
+        public bool IsOverTime { get; set; }
+        public float Duration { get; set; }
+        public float BuffStrength { get; set; }
+        public object Source { get; set; }
+        public object Target { get; set; }
     }
 } 

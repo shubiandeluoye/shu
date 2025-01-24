@@ -8,20 +8,20 @@ namespace SkillModule.Core
     /// </summary>
     public class SkillContext
     {
-        public GameObject Source { get; set; }
-        public GameObject Target { get; set; }
+        public object Source { get; set; }
+        public object Target { get; set; }
         public Vector3 Position { get; set; }
         public Vector3 Direction { get; set; }
         public float[] Parameters { get; set; }
 
         public SkillContext() { }
 
-        public SkillContext(GameObject source)
+        public SkillContext(object source)
         {
             Source = source;
         }
 
-        public SkillContext WithTarget(GameObject target)
+        public SkillContext WithTarget(object target)
         {
             Target = target;
             return this;

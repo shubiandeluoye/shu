@@ -2,12 +2,10 @@
 // @SkillManager: Assets/Project/Scripts/SkillModule/Core/SkillManager.cs
 using UnityEngine;
 using Core.Singleton;
-using Core.EventSystem;
-using SkillModule.Core;    // 引用 SkillManager.cs
+using SkillModule.Events;  // 改用技能模块的事件系统
+using SkillModule.Core;
 using SkillModule.Types;
-
 using SkillModule.Effects;
-using SkillModule.Events;
 using System.Collections.Generic;
 using SkillModule.Skills;
 using PlayerModule;  // 添加 PlayerModule 引用
@@ -26,30 +24,43 @@ namespace SkillModule
     /// </summary>
     public class SkillSystemManager : Singleton<SkillSystemManager>
     {
-        private SkillModule.Core.SkillManager skillManager;
+        private SkillEventManager eventManager => SkillEventManager.Instance;  // 使用技能模块的事件管理器
         private Dictionary<int, BaseEffect> activeEffects;
-        private EventManager eventManager;
+        private Dictionary<int, BaseSkill> skills = new Dictionary<int, BaseSkill>();
+        private SkillEventSystem eventSystem => SkillEventSystem.Instance;
 
         protected override void OnAwake()
         {
             base.OnAwake();
-            Initialize();
-        }
-
-        private void Initialize()
-        {
-            skillManager = GetComponent<SkillModule.Core.SkillManager>();
-            activeEffects = new Dictionary<int, BaseEffect>();
-            eventManager = EventManager.Instance;
-
             RegisterEventListeners();
+            Initialize();
         }
 
         private void RegisterEventListeners()
         {
+            // 技能事件
             eventManager.AddListener<SkillStartEvent>(OnSkillStart);
             eventManager.AddListener<SkillEndEvent>(OnSkillEnd);
             eventManager.AddListener<SkillCooldownEvent>(OnSkillCooldown);
+            eventManager.AddListener<SkillInterruptEvent>(OnSkillInterrupt);
+            
+            // 效果事件
+            eventManager.AddListener<AddEffectEvent>(OnEffectAdded);
+            eventManager.AddListener<RemoveEffectEvent>(OnEffectRemoved);
+            eventManager.AddListener<EffectStateChangeEvent>(OnEffectStateChanged);
+            
+            // 伤害和治疗事件
+            eventManager.AddListener<DamageEvent>(OnDamageDealt);
+            eventManager.AddListener<HealingEvent>(OnHealingApplied);
+            eventManager.AddListener<ShieldEvent>(OnShieldChanged);
+            eventManager.AddListener<ProjectileEvent>(OnProjectileSpawned);
+            eventManager.AddListener<AreaEffectEvent>(OnAreaEffectCreated);
+        }
+
+        private void Initialize()
+        {
+            // 订阅相关事件
+            eventSystem.Subscribe("SkillUsed", OnSkillUsed);
         }
 
         #region 公共接口
@@ -59,7 +70,8 @@ namespace SkillModule
         /// </summary>
         public bool UseSkill(int skillId, Vector3 position, Vector3 direction)
         {
-            return skillManager.UseSkill(skillId, position, direction);
+            Debug.Log($"[{System.DateTime.Now:HH:mm:ss.fff}][SkillSystemManager] Trying to use skill {skillId} at position {position}, skillManager is: {(eventManager == null ? "null" : "not null")}");
+            return eventManager.UseSkill(skillId, position, direction);
         }
 
         /// <summary>
@@ -67,7 +79,7 @@ namespace SkillModule
         /// </summary>
         public void RegisterSkill(Core.SkillConfig config)
         {
-            skillManager.RegisterSkill(config);
+            eventManager.RegisterSkill(config);
         }
 
         /// <summary>
@@ -132,132 +144,71 @@ namespace SkillModule
 
         private void OnSkillStart(SkillStartEvent evt)
         {
-            var config = skillManager.GetSkillConfig(evt.SkillId);
-            if (config != null)
-            {
-                switch (config.Type)
-                {
-                    case SkillType.Shoot:
-                        HandleShootSkill(config as ShootConfig, evt.Position, evt.Direction);
-                        break;
-                    case SkillType.Box:
-                        HandleBoxSkill(config as BoxConfig, evt.Position, evt.Direction);
-                        break;
-                    case SkillType.Barrier:
-                        HandleBarrierSkill(config as BarrierConfig, evt.Position, evt.Direction);
-                        break;
-                    case SkillType.Heal:
-                        HandleHealSkill(config as Skills.HealConfig, evt.Position, evt.Direction);
-                        break;
-                }
-            }
+            Debug.Log($"[SkillSystem] Skill {evt.SkillId} started at {evt.Position}");
         }
 
         private void OnSkillEnd(SkillEndEvent evt)
         {
-            // 处理技能结束事件
-            // 可以在这里清理相关效果
+            Debug.Log($"[SkillSystem] Skill {evt.SkillId} ended. Success: {evt.WasSuccessful}");
         }
 
         private void OnSkillCooldown(SkillCooldownEvent evt)
         {
-            // 处理技能冷却事件
-            // 可以在这里更新UI等
+            Debug.Log($"[SkillSystem] Skill {evt.SkillId} cooldown: {evt.RemainingCooldown:F1}s");
         }
 
-        #endregion
-
-        #region 技能效果处理
-
-        private void HandleShootSkill(ShootConfig config, Vector3 position, Vector3 direction)
+        private void OnSkillInterrupt(SkillInterruptEvent evt)
         {
-            if (config == null) return;
+            Debug.Log($"[SkillSystem] Skill {evt.SkillId} interrupted: {evt.InterruptReason}");
+        }
 
-            foreach (float angle in config.ShootAngles)
+        private void OnEffectAdded(AddEffectEvent evt)
+        {
+            Debug.Log($"[SkillSystem] Effect added to {evt.Target.name}, duration: {evt.Duration}s");
+        }
+
+        private void OnEffectRemoved(RemoveEffectEvent evt)
+        {
+            Debug.Log($"[SkillSystem] Effect {evt.EffectId} removed: {evt.Reason}");
+        }
+
+        private void OnEffectStateChanged(EffectStateChangeEvent evt)
+        {
+            Debug.Log($"[SkillSystem] Effect {evt.EffectId} state changed to {evt.IsActive}");
+        }
+
+        private void OnDamageDealt(DamageEvent evt)
+        {
+            Debug.Log($"[SkillSystem] {evt.Source.name} dealt {evt.Damage} damage to {evt.Target.name}");
+        }
+
+        private void OnHealingApplied(HealingEvent evt)
+        {
+            Debug.Log($"[SkillSystem] {evt.Source.name} healed {evt.Target.name} for {evt.Amount}");
+        }
+
+        private void OnShieldChanged(ShieldEvent evt)
+        {
+            Debug.Log($"[SkillSystem] Shield on {evt.Target.name}: {evt.ShieldAmount}");
+        }
+
+        private void OnProjectileSpawned(ProjectileEvent evt)
+        {
+            Debug.Log($"[SkillSystem] Projectile spawned: {evt.ProjectileType}");
+        }
+
+        private void OnAreaEffectCreated(AreaEffectEvent evt)
+        {
+            Debug.Log($"[SkillSystem] Area effect created at {evt.Position}, radius: {evt.Radius}");
+        }
+
+        private void OnSkillUsed(object eventData)
+        {
+            if (eventData is SkillEventData data)
             {
-                Vector3 rotatedDirection = RotateVector(direction, angle);
-                var projectile = Instantiate(config.SkillPrefab, position, Quaternion.identity);
-                CreateProjectile(
-                    projectile,
-                    rotatedDirection,
-                    config.BulletSpeed,
-                    config.BulletDamage,
-                    config.BulletLifetime
-                );
+                // 处理技能使用事件
+                // 可以在这里实现技能效果、动画等
             }
-        }
-
-        private void HandleBoxSkill(BoxConfig config, Vector3 position, Vector3 direction)
-        {
-            if (config == null) return;
-
-            var box = Instantiate(config.SkillPrefab, position, Quaternion.identity);
-            var boxBehaviour = box.GetComponent<BoxBehaviour>();
-            if (boxBehaviour != null)
-            {
-                boxBehaviour.Initialize(config.BoxDurability, config.CanBePushed, config.PushForce);
-            }
-        }
-
-        private void HandleBarrierSkill(BarrierConfig config, Vector3 position, Vector3 direction)
-        {
-            if (config == null) return;
-
-            var barrier = Instantiate(config.SkillPrefab, position, Quaternion.identity);
-            var barrierBehaviour = barrier.GetComponent<BarrierBehaviour>();
-            if (barrierBehaviour != null)
-            {
-                barrierBehaviour.Initialize(
-                    config.BarrierHealth,
-                    config.BlocksProjectiles,
-                    config.BlocksPlayers,
-                    config.DamageReduction,
-                    config.Duration
-                );
-            }
-        }
-
-        private void HandleHealSkill(Skills.HealConfig config, Vector3 position, Vector3 direction)
-        {
-            if (config == null) return;
-
-            // 使用 GameObject.FindObjectOfType 来获取 PlayerSystemManager 实例
-            var player = GameObject.FindObjectOfType<PlayerSystemManager>();
-            if (player != null)
-            {
-                // 创建回血效果
-                var healEffect = CreateHealEffect(
-                    config.SkillPrefab,
-                    player.transform.position,
-                    config.HealAmount,
-                    config.BuffDuration
-                );
-
-                // 应用回血效果
-                player.ApplyHeal(config.HealAmount);
-            }
-        }
-
-        /// <summary>
-        /// 创建回血效果
-        /// </summary>
-        public HealEffect CreateHealEffect(GameObject effectPrefab, Vector3 position, int healAmount, float duration)  // 修改参数类型为 int
-        {
-            var effect = new HealEffect(effectPrefab, position, healAmount, duration);
-            RegisterEffect(effect);
-            return effect;
-        }
-
-        private Vector3 RotateVector(Vector3 vector, float degrees)
-        {
-            float radians = degrees * Mathf.Deg2Rad;
-            float cos = Mathf.Cos(radians);
-            float sin = Mathf.Sin(radians);
-            return new Vector3(
-                vector.x * cos - vector.y * sin,
-                vector.x * sin + vector.y * cos,
-                0
-            );
         }
 
         #endregion
@@ -286,10 +237,35 @@ namespace SkillModule
             }
             activeEffects.Clear();
 
-            // 取消事件监听
+            UnregisterEventListeners();
+        }
+
+        private void UnregisterEventListeners()
+        {
+            if (eventManager == null) return;
+
+            // 技能事件
             eventManager.RemoveListener<SkillStartEvent>(OnSkillStart);
             eventManager.RemoveListener<SkillEndEvent>(OnSkillEnd);
             eventManager.RemoveListener<SkillCooldownEvent>(OnSkillCooldown);
+            eventManager.RemoveListener<SkillInterruptEvent>(OnSkillInterrupt);
+            
+            // 效果事件
+            eventManager.RemoveListener<AddEffectEvent>(OnEffectAdded);
+            eventManager.RemoveListener<RemoveEffectEvent>(OnEffectRemoved);
+            eventManager.RemoveListener<EffectStateChangeEvent>(OnEffectStateChanged);
+            
+            // 伤害和治疗事件
+            eventManager.RemoveListener<DamageEvent>(OnDamageDealt);
+            eventManager.RemoveListener<HealingEvent>(OnHealingApplied);
+            eventManager.RemoveListener<ShieldEvent>(OnShieldChanged);
+            eventManager.RemoveListener<ProjectileEvent>(OnProjectileSpawned);
+            eventManager.RemoveListener<AreaEffectEvent>(OnAreaEffectCreated);
+        }
+
+        public Dictionary<string, int> GetEventStatistics()
+        {
+            return eventManager.GetEventStatistics();
         }
     }
 } 

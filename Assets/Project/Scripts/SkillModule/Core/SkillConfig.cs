@@ -10,20 +10,20 @@ namespace SkillModule.Core
     /// 2. 技能预制体管理
     /// 3. 技能类型定义
     /// </summary>
-    public abstract class SkillConfig : ScriptableObject
+    public class SkillConfig
     {
         [Header("基础配置")]
-        public int SkillId;
-        public string SkillName;
+        public int SkillId { get; set; }
+        public string SkillName { get; set; }
         [TextArea(3, 5)]
-        public string Description;
-        public SkillType Type;
+        public string Description { get; set; }
+        public SkillType Type { get; set; }
 
         [Header("时间参数")]
-        public float Cooldown = 1f;
-        public float Duration;
+        public float Cooldown { get; set; }
+        public float Duration { get; set; }
         public float CastTime;
-        public bool CanCancel;
+        public bool CanCancel { get; set; }
 
         [Header("目标配置")]
         public TargetType TargetType;

@@ -110,12 +110,11 @@ namespace Core.EventSystem
                 }
             }
 
-            // 如果有异常，抛出聚合异常
+            // 处理异常
             if (exceptions.Count > 0)
             {
                 if (exceptions.Count == 1)
                 {
-                    Debug.LogError($"[EventManager] 事件处理过程中发生单个异常");
                     throw exceptions[0];
                 }
                 else

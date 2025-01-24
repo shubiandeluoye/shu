@@ -16,20 +16,20 @@ namespace SkillModule.Skills
     public class BoxConfig : SkillConfig
     {
         [Header("盒子配置")]
-        public float BoxSize = 1f;
-        public float BoxDurability = 100f;
+        public float BoxSize { get; set; } = 1f;
+        public float BoxDurability { get; set; } = 100f;
         public Color BoxColor = Color.white;
         public PhysicsMaterial2D BoxMaterial;
         public bool UsePhysicsMaterial = true;
-        public float Mass = 1f;
-        public float Drag = 0.5f;
+        public float Mass { get; set; } = 1f;
+        public float Drag { get; set; } = 0.5f;
 
         [Header("放置配置")]
-        public float PlaceDistance = 2f;
-        public bool CheckGroundCollision = true;
+        public float PlaceDistance { get; set; } = 2f;
+        public bool CheckGroundCollision { get; set; } = true;
         public LayerMask PlacementMask;
-        public bool CanBePushed = true;
-        public float PushForce = 5f;
+        public bool CanBePushed { get; set; } = true;
+        public float PushForce { get; set; } = 5f;
 
         [Header("特效配置")]
         public GameObject PlaceEffectPrefab;
@@ -85,6 +85,19 @@ namespace SkillModule.Skills
                 PushForce = 0;
                 Debug.LogWarning($"[BoxConfig] {SkillName} 的推力不能为负数");
             }
+        }
+
+        public override bool IsValid()
+        {
+            if (!base.IsValid()) return false;
+
+            // 验证盒子配置
+            if (BoxSize <= 0) return false;
+            if (BoxDurability <= 0) return false;
+            if (PlaceDistance < 0) return false;
+            if (PushForce < 0) return false;
+
+            return true;
         }
     }
 } 

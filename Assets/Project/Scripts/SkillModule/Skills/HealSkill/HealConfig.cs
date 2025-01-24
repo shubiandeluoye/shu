@@ -8,11 +8,11 @@ namespace SkillModule.Skills
     public class HealConfig : SkillConfig
     {
         [Header("治疗配置")]
-        public int HealAmount = 20;
-        public bool IsPercentage = false;
-        public float HealRadius = 0f;        // 0表示单体治疗，大于0表示范围治疗
+        public int HealAmount { get; set; } = 20;
+        public bool IsPercentage { get; set; } = false;
+        public float HealRadius { get; set; } = 0f;        // 0表示单体治疗，大于0表示范围治疗
         public LayerMask TargetLayers;
-        public bool CanOverheal = false;     // 是否可以过量治疗
+        public bool CanOverheal { get; set; } = false;     // 是否可以过量治疗
 
         [Header("治疗效果")]
         public Color HealColor = Color.green;
@@ -29,9 +29,9 @@ namespace SkillModule.Skills
         public new float SoundVolume = 0.5f;
 
         [Header("额外效果")]
-        public bool ApplyBuff = false;
-        public float BuffDuration = 5f;
-        public float BuffStrength = 1.2f;
+        public bool ApplyBuff { get; set; } = false;
+        public float BuffDuration { get; set; } = 5f;
+        public float BuffStrength { get; set; } = 1.2f;
         public GameObject BuffEffectPrefab;
 
         public HealConfig()
@@ -100,6 +100,24 @@ namespace SkillModule.Skills
                     Debug.LogWarning($"[HealConfig] {SkillName} 的Buff强度必须大于0");
                 }
             }
+        }
+
+        public override bool IsValid()
+        {
+            if (!base.IsValid()) return false;
+
+            // 验证治疗配置
+            if (HealAmount < 0) return false;
+            if (HealRadius < 0) return false;
+
+            // 验证Buff效果
+            if (ApplyBuff)
+            {
+                if (BuffDuration <= 0) return false;
+                if (BuffStrength <= 0) return false;
+            }
+
+            return true;
         }
     }
 } 
