@@ -21,7 +21,6 @@ namespace PlayerModule.Systems
         private Transform shootPoint;
         private float lastShootTime;
         private BulletType currentBulletType;
-        private float currentAngle;
         private GameObject owner;  // 添加所有者引用
 
         public BulletType CurrentBulletType => currentBulletType;
@@ -37,23 +36,16 @@ namespace PlayerModule.Systems
         {
             this.shootPoint = shootPoint;
             lastShootTime = -config.ShootCooldown;
-            currentAngle = 30f; // 默认30度
         }
 
-        public void Shoot(float angle)
+        public void Shoot()  // 简化Shoot方法，不再需要angle参数
         {
             if (Time.time < lastShootTime + config.ShootCooldown) return;
 
-            Vector3 shootPosition = shootPoint.position + (Vector3.right * config.BulletSpawnOffset);
-            Vector3 shootDirection = Quaternion.Euler(0, 0, angle) * Vector3.right;
+            Vector3 shootPosition = shootPoint.position + (config.ShootPoint * config.BulletSpawnOffset);
+            Vector3 shootDirection = config.ShootPoint.normalized;
 
-            // 创建技能上下文
-            var context = new SkillContext(owner)
-                .WithPosition(shootPosition)
-                .WithDirection(shootDirection)
-                .WithParameters(GetBulletDamage(), GetBulletSpeed());
-
-            // 使用技能系统的接口
+            // 使用技能系统发射
             if (SkillSystemManager.Instance.UseSkill((int)currentBulletType, shootPosition, shootDirection))
             {
                 lastShootTime = Time.time;
@@ -74,11 +66,6 @@ namespace PlayerModule.Systems
 
             // 注册技能
             SkillSystemManager.Instance.RegisterSkill(config);
-        }
-
-        public void ToggleAngle()
-        {
-            currentAngle = currentAngle == 30f ? 45f : 30f;
         }
 
         private float GetBulletSpeed()

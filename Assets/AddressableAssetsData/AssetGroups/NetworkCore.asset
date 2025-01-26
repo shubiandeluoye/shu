@@ -1,0 +1,70 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbb281ee3bf0b054c82ac2347e9e782c, type: 3}
+  m_Name: NetworkCore
+  m_EditorClassIdentifier: 
+  m_GroupName: NetworkCore
+  m_Data:
+    m_SerializedData: []
+  m_GUID: d5f384993f8a5994d923a9f5130ced0f
+  m_SerializeEntries:
+  - m_GUID: d7d9ec6f85785c14cb7a8d2bd6bfc65f
+    m_Address: Assets/Prefabs/Palyer/Player.prefab
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: c8ba5f6e4432fb54c86fe345d1208b3d
+    m_Address: Assets/Project/Prefabs/Bullets/SphereBullet.prefab
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: bdfddfd0af58c1b4f9e284c976047708
+    m_Address: Assets/Project/Prefabs/Bullets/CapsuleBullet.prefab
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 75f707b7ac6f92e4298edb0fef181a2b
+    m_Address: Assets/Project/Prefabs/Bullets/BookCubeBullet.prefab
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: d99a5d55ec053e14db0a8c5d0bc66c86
+    m_Address: Assets/Prefabs/Map/Map.prefab
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 6cea705369e2a7247bc14ad8e5f6452a
+    m_Address: Assets/Prefabs/Map/Map (1).prefab
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9e04ef7d4b26a2048bdb20fe3143e32e
+    m_Address: Assets/Project/Prefabs/Glass/GlassParticleSystem.prefab
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 16c4c918ba8b972448cde1374278ace6
+    m_Address: Assets/Project/Materials/Bullets/SphereBulletGlowMaterial.mat
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: aac01476736e7ec4aae6b873ae279dc4
+    m_Address: Assets/Prefabs/Palyer/Player Material.mat
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  m_ReadOnly: 0
+  m_Settings: {fileID: 11400000, guid: 1ff22506349082642ab8adf276eb2b05, type: 2}
+  m_SchemaSet:
+    m_Schemas:
+    - {fileID: 11400000, guid: 5cf9a626ac6cb964cb3b31086445fc68, type: 2}
+    - {fileID: 11400000, guid: e0ffbd00656b9f444978152b9b5eb748, type: 2}

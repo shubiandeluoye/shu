@@ -96,6 +96,12 @@ namespace Core.EventSystem
         public bool IsActive { get; set; }
     }
 
+    // 设备类型事件
+    public class DeviceTypeEvent
+    {
+        public bool IsMobileDevice { get; set; }
+    }
+
     public enum GameEvents
     {
         // 系统事件

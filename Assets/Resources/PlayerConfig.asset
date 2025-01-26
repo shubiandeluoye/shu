@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d2f471bf03b13f64387d67815351f7d3, type: 3}
+  m_Name: PlayerConfig
+  m_EditorClassIdentifier: 
+  MovementConfig:
+    MoveSpeed: 5
+    KnockbackDrag: 5
+    Bounds:
+      serializedVersion: 2
+      x: -50
+      y: -50
+      width: 100
+      height: 100
+  HealthConfig:
+    MaxHealth: 100
+    InvincibilityTime: 0.5
+  ShootingConfig:
+    ShootAngles:
+    - 0
+    - 30
+    - -30
+    - 45
+    - -45
+    ShootCooldown: 0.2

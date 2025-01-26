@@ -26,14 +26,69 @@ namespace SkillModule
     /// </summary>
     public class SkillSystemManager : Singleton<SkillSystemManager>
     {
+        [Header("技能配置")]
+        [SerializeField] private SkillConfig[] skillConfigs;  // 添加这个数组字段
+
         private SkillModule.Core.SkillManager skillManager;
         private Dictionary<int, BaseEffect> activeEffects;
         private EventManager eventManager;
+
+        #region 射击点管理
+        private Dictionary<GameObject, Transform> shootPoints = new Dictionary<GameObject, Transform>();
+
+        /// <summary>
+        /// 注册射击点
+        /// </summary>
+        public void RegisterShootPoint(GameObject owner, Transform shootPoint)
+        {
+            if (owner != null && shootPoint != null)
+            {
+                shootPoints[owner] = shootPoint;
+                Debug.Log($"注册射击点: {owner.name}, 位置: {shootPoint.position}");
+            }
+        }
+
+        /// <summary>
+        /// 获取射击点位置
+        /// </summary>
+        public Vector3 GetShootPosition(GameObject owner)
+        {
+            if (shootPoints.TryGetValue(owner, out var point))
+            {
+                return point.position;
+            }
+            return owner.transform.position; // 如果没有注册射击点，返回物体位置
+        }
+
+        /// <summary>
+        /// 获取射击方向
+        /// </summary>
+        public Vector3 GetShootDirection(GameObject owner)
+        {
+            if (shootPoints.TryGetValue(owner, out var point))
+            {
+                return point.forward;
+            }
+            return owner.transform.forward; // 如果没有注册射击点，返回物体朝向
+        }
+        #endregion
 
         protected override void OnAwake()
         {
             base.OnAwake();
             Initialize();
+
+            // 注册所有配置的技能
+            if (skillConfigs != null)
+            {
+                foreach (var config in skillConfigs)
+                {
+                    if (config != null)
+                    {
+                        RegisterSkill(config);
+                    }
+                }
+            }
         }
 
         private void Initialize()
@@ -173,6 +228,7 @@ namespace SkillModule
         {
             if (config == null) return;
 
+            // 直接使用传入的position和direction
             foreach (float angle in config.ShootAngles)
             {
                 Vector3 rotatedDirection = RotateVector(direction, angle);
@@ -264,6 +320,7 @@ namespace SkillModule
 
         protected override void Update()
         {
+            if (skillManager == null) return;  // 添加空检查
             base.Update();
             // 更新所有活动效果
             var effectIds = new List<int>(activeEffects.Keys);
@@ -278,6 +335,7 @@ namespace SkillModule
 
         protected override void OnDestroy()
         {
+            if (skillManager == null) return;  // 添加空检查
             base.OnDestroy();
             // 清理所有效果
             foreach (var effect in activeEffects.Values)

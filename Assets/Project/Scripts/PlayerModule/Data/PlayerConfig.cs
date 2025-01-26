@@ -2,8 +2,8 @@ using UnityEngine;
 
 namespace PlayerModule.Data
 {
-    [System.Serializable]
-    public class PlayerConfig
+    [CreateAssetMenu(fileName = "PlayerConfig", menuName = "Game/Player/Player Config")]
+    public class PlayerConfig : ScriptableObject
     {
         public MovementConfig MovementConfig;
         public HealthConfig HealthConfig;
@@ -28,8 +28,8 @@ namespace PlayerModule.Data
     [System.Serializable]
     public class ShootingConfig
     {
-        public float[] ShootAngles = { 0f, 30f, -30f, 45f, -45f };
         public float ShootCooldown = 0.2f;
         public float BulletSpawnOffset = 0.5f;
+        public Vector3 ShootPoint = new Vector3(0.5f, 0, 0);
     }
 } 

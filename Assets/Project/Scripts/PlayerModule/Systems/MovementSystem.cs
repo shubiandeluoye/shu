@@ -22,12 +22,16 @@ namespace PlayerModule
         private float stunEndTime;
         private bool isStunned;
         private Rigidbody rb;
+        private Transform transform;
 
         public bool IsStunned => isStunned;
 
-        public MovementSystem(MovementConfig config)
+        public MovementSystem(MovementConfig config, Rigidbody rigidbody)
         {
             this.config = config;
+            this.rb = rigidbody;
+            Debug.Log($"[MovementSystem] Initialized with Rigidbody: {(rb != null ? "Success" : "Failed")}");
+            this.transform = rigidbody.transform;
         }
 
         public void Initialize(Vector3 startPosition)
@@ -40,25 +44,36 @@ namespace PlayerModule
 
         public void HandleMovement(Vector3 direction)
         {
-            if (isStunned) return;
+            if (rb == null) return;
 
-            // 确保在XZ平面上移动
-            Vector3 flatDirection = new Vector3(direction.x, 0, direction.z).normalized;
-            currentVelocity = flatDirection * config.MoveSpeed;
+            // 将输入方向转换为8方向
+            Vector3 eightDirMovement = ConvertToEightDirections(direction);
             
-            // 使用Rigidbody移动
-            if (rb != null)
+            // 设置速度（不强制设置y值，让它自然下落）
+            Vector3 targetVelocity = eightDirMovement * config.MoveSpeed;
+            targetVelocity.y = rb.velocity.y;  // 保持当前的Y轴速度
+            rb.velocity = targetVelocity;
+
+            // 只在有输入时才旋转
+            if (eightDirMovement != Vector3.zero)
             {
-                rb.velocity = new Vector3(currentVelocity.x, rb.velocity.y, currentVelocity.z);
+                // 计算目标旋转（只绕Y轴）
+                Quaternion targetRotation = Quaternion.LookRotation(eightDirMovement);
+                transform.rotation = targetRotation;
             }
         }
 
-        private Vector2 NormalizeToEightDirections(Vector2 input)
+        private Vector3 ConvertToEightDirections(Vector3 input)
         {
-            // 将输入转换为8个固定方向之一
-            float angle = Mathf.Atan2(input.y, input.x);
+            if (input.magnitude < 0.01f) return Vector3.zero;
+
+            // 计算角度
+            float angle = Mathf.Atan2(input.z, input.x);
+            // 将角度转换为8个方向中的一个（每45度一个方向）
             angle = Mathf.Round(angle / (Mathf.PI / 4)) * (Mathf.PI / 4);
-            return new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)).normalized;
+            
+            // 转换回向量（只在XZ平面上）
+            return new Vector3(Mathf.Cos(angle), 0, Mathf.Sin(angle)).normalized;
         }
 
         public void ApplyStun(float duration)

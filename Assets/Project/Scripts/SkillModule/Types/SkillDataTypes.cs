@@ -14,6 +14,48 @@ namespace SkillModule.Types
     }
 
     /// <summary>
+    /// 技能类型枚举
+    /// </summary>
+    public enum SkillType
+    {
+        None = 0,
+        Attack = 1,     // 攻击
+        Heal = 2,       // 治疗
+        Barrier = 3,    // 屏障
+        Box = 4,        // 盒子
+        Shoot = 5,      // 射击
+        Buff = 6,       // 增益
+        Custom = 1000   // 自定义技能起始值
+    }
+
+    /// <summary>
+    /// 效果类型枚举
+    /// </summary>
+    public enum EffectType
+    {
+        None = 0,
+        Damage = 1,     // 伤害
+        Heal = 2,       // 治疗
+        Shield = 3,     // 护盾
+        Speed = 4,      // 速度
+        Stun = 5,       // 眩晕
+        Buff = 6,       // 增益
+        Custom = 1000   // 自定义效果起始值
+    }
+
+    /// <summary>
+    /// 目标类型枚举
+    /// </summary>
+    public enum TargetType
+    {
+        None = 0,
+        Self = 1,       // 自身
+        Single = 2,     // 单体
+        Area = 3,       // 区域
+        Direction = 4   // 方向
+    }
+
+    /// <summary>
     /// 技能触发数据
     /// </summary>
     public struct SkillTriggerData
@@ -92,6 +134,24 @@ namespace SkillModule.Types
         public HealData()
         {
             Type = SkillType.Heal;
+        }
+    }
+
+    /// <summary>
+    /// 射击技能数据
+    /// </summary>
+    [System.Serializable]
+    public class ShootData : SkillData
+    {
+        public GameObject Owner { get; set; }  // 技能拥有者
+        public float[] ShootAngles = { 0f };   // 射击角度
+        public float BulletSpeed = 10f;        // 子弹速度
+        public float BulletDamage = 10f;       // 子弹伤害
+        public float BulletLifetime = 3f;      // 子弹生命周期
+
+        public ShootData()
+        {
+            Type = SkillType.Shoot;  // 需要在SkillType枚举中添加Shoot类型
         }
     }
 } 
